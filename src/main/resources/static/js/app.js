@@ -3154,9 +3154,23 @@ function dashMetricIcon(type) {
     warning: '<path d="M10.3 2.9 1.8 17a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 2.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
     sku: '<path d="m21 8-9-5-9 5 9 5z"/><path d="m3 8 9 5 9-5v8l-9 5-9-5z"/><path d="M12 13v8"/>',
     stock: '<path d="M3 10 12 4l9 6"/><path d="M5 9v11h14V9M8 13h8M8 17h8"/>',
-    cost: '<circle cx="9" cy="8" r="5"/><path d="M7 8h4M9 6v4M14 12a5 5 0 1 1-5 5"/>'
+    cost: '<circle cx="9" cy="8" r="5"/><path d="M7 8h4M9 6v4M14 12a5 5 0 1 1-5 5"/>',
+    blocked: '<circle cx="12" cy="12" r="9"/><path d="m8 8 8 8"/>',
+    vip: '<path d="M3 7h18l-3 11H6z"/><path d="m3 7 4-4 5 4 5-4 4 4M8 13h8"/>',
+    gold: '<path d="m12 2 3 6 6.5 1-4.7 4.6 1.1 6.4-5.9-3.1L6.1 20l1.1-6.4L2.5 9 9 8z"/>',
+    views: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/>',
+    visitor: '<circle cx="9" cy="7" r="4"/><path d="M2 21v-2a7 7 0 0 1 14 0v2M19 8v6M16 11h6"/>',
+    session: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3v-7a5 5 0 0 1-1-3V7a4 4 0 0 1 4-4h11a4 4 0 0 1 4 4z"/><path d="M7 9h10M7 13h6"/>',
+    purchase: '<circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M2 3h3l2.4 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.6L21 7H6"/>',
+    average: '<path d="M5 20V10M12 20V4M19 20v-7"/><path d="M3 20h18"/>',
+    refund: '<path d="M3 7v6h6"/><path d="M5.5 15a8 8 0 1 0 1-9L3 9"/><path d="M9 10h6M12 7v6"/>',
+    review: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3v-7a5 5 0 0 1-1-3V7a4 4 0 0 1 4-4h11a4 4 0 0 1 4 4z"/><path d="m12 7 1.2 2.4 2.8.4-2 2 .5 2.8-2.5-1.3-2.5 1.3.5-2.8-2-2 2.8-.4z"/>',
+    rating: '<path d="m12 2 3 6 6.5 1-4.7 4.6 1.1 6.4-5.9-3.1L6.1 20l1.1-6.4L2.5 9 9 8z"/>',
+    positive: '<circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9"/>',
+    response: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    message: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3v-7a5 5 0 0 1-1-3V7a4 4 0 0 1 4-4h11a4 4 0 0 1 4 4z"/><path d="M7 9h10M7 13h7"/>'
   };
-  return '<span class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + icons[type] + '</svg></span>';
+  return '<span class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (icons[type] || icons.sales) + '</svg></span>';
 }
 
 // 每日成交金额：面积折线更适合阅读连续日期的趋势变化。

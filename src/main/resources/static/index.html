@@ -21,7 +21,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>电商数据管理平台</title>
-  <link rel="stylesheet" href="css/style.css?v=20260921-2">
+  <link rel="stylesheet" href="css/style.css?v=20260921-3">
 </head>
 <body>
 
@@ -801,7 +801,7 @@
             <label class="field">等级<select id="memLevel"><option value="">全部等级</option><option>普通会员</option><option>VIP会员</option><option>黄金会员</option></select></label>
             <label class="field">状态<select id="memStatus"><option value="">全部状态</option><option>正常</option><option>黑名单</option></select></label>
             <button class="btn btn-primary" type="button" onclick="loadMembers(1)">查询</button><button class="btn" type="button" onclick="resetMembers()">重置</button>
-          </div></div>
+          </div><button class="btn btn-primary" type="button" onclick="openMemberForm()">新增会员</button></div>
           <div class="table-wrap"><table class="operation-table"><thead><tr><th>会员编号</th><th>昵称</th><th>手机号</th><th>等级</th><th>来源</th><th>余额</th><th>积分</th><th>累计消费</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="memberTbody"></tbody></table></div><div class="pager" id="memberPager"></div>
         </section>
 
@@ -820,7 +820,7 @@
           <div id="warehouseStatus" class="warehouse-status" role="status">正在检查 Hadoop / Hive…</div>
           <div id="analysisPipeline" class="pipeline-strip" role="status">正在读取数据链路…</div>
           <div class="analysis-tabs" id="analysisTabs">
-            <button class="analysis-tab active" data-kind="behavior">用户行为</button><button class="analysis-tab" data-kind="sales">订单销售</button><button class="analysis-tab" data-kind="review">评价舆情</button><button class="analysis-tab" data-kind="service">客服咨询</button>
+            <button class="analysis-tab active" data-kind="behavior"><span class="analysis-tab-icon" aria-hidden="true">⌁</span>用户行为</button><button class="analysis-tab" data-kind="sales"><span class="analysis-tab-icon" aria-hidden="true">¥</span>订单销售</button><button class="analysis-tab" data-kind="review"><span class="analysis-tab-icon" aria-hidden="true">☆</span>评价舆情</button><button class="analysis-tab" data-kind="service"><span class="analysis-tab-icon" aria-hidden="true">◌</span>客服咨询</button>
           </div>
           <div class="metric-strip analysis-metrics" id="analysisMetrics"></div>
           <div class="analysis-grid"><div class="analysis-panel"><h3 id="analysisPrimaryTitle">趋势分布</h3><div id="analysisPrimaryChart" class="analysis-chart"></div></div><div class="analysis-panel"><h3 id="analysisSecondaryTitle">结构分布</h3><div id="analysisSecondaryChart" class="analysis-chart"></div></div></div>
@@ -1266,9 +1266,9 @@
 
   <!-- 图表库：ECharts 5.4.3 本地文件（无 CDN），必须在 app.js 之前加载（app.js 直接引用全局 echarts） -->
   <script src="js/vendor/echarts.min.js"></script>
-  <script src="js/app.js?v=20260921-3"></script>
+  <script src="js/app.js?v=20260921-4"></script>
   <script src="js/phase1.js?v=20260920-1"></script>
-  <script src="js/order.js?v=20260920-1"></script>
-  <script src="js/operations.js?v=20260921-1"></script>
+  <script src="js/order.js?v=20260921-2"></script>
+  <script src="js/operations.js?v=20260921-2"></script>
 </body>
 </html>

@@ -89,6 +89,12 @@ public class OperationsController {
         return R.ok();
     }
 
+    @PostMapping("/Activity/delete")
+    public R deleteActivity(Long id) {
+        if (id == null || jdbc.update("DELETE FROM tbl_activity WHERE id=?", id) != 1) throw new RuntimeException("活动不存在");
+        return R.ok();
+    }
+
     @GetMapping("/Member/list")
     public R memberList(Integer page, Integer limit, String keyword, String level, String status) {
         String where = " WHERE 1=1"; List<Object> args = new ArrayList<>();
@@ -103,6 +109,29 @@ public class OperationsController {
         return R.ok(jdbc.queryForMap("SELECT COUNT(*) totalCount,SUM(status='黑名单') blockedCount," +
                 "SUM(member_level='普通会员') normalCount,SUM(member_level='VIP会员') vipCount," +
                 "SUM(member_level='黄金会员') goldCount FROM tbl_member"));
+    }
+
+    @PostMapping("/Member/save")
+    @Transactional(rollbackFor = Exception.class)
+    public R saveMember(String userId, String nickname, String phone, String memberLevel,
+                        String source, Double balance, Integer points) {
+        require(userId, "会员编号"); require(nickname, "昵称"); require(phone, "手机号");
+        require(memberLevel, "会员等级"); require(source, "会员来源");
+        if (!userId.trim().matches("U\\d{5,}")) throw new RuntimeException("会员编号应为 U 加至少 5 位数字");
+        if (!phone.trim().matches("1\\d{10}")) throw new RuntimeException("请输入 11 位手机号");
+        if (!List.of("普通会员", "VIP会员", "黄金会员").contains(memberLevel)) throw new RuntimeException("会员等级不合法");
+        if (!List.of("APP", "小程序", "PC网页", "线下导入").contains(source)) throw new RuntimeException("会员来源不合法");
+        double initialBalance = balance == null ? 0 : balance;
+        int initialPoints = points == null ? 0 : points;
+        if (!Double.isFinite(initialBalance) || initialBalance < 0 || initialPoints < 0) throw new RuntimeException("初始余额和积分不能小于 0");
+        if (!jdbc.queryForList("SELECT id FROM tbl_member WHERE user_id=? OR phone=?", userId.trim(), phone.trim()).isEmpty())
+            throw new RuntimeException("会员编号或手机号已存在");
+        jdbc.update("INSERT INTO tbl_member(user_id,nickname,phone,member_level,source,balance,points,total_spent,status) VALUES(?,?,?,?,?,?,?,0,'正常')",
+                userId.trim(), nickname.trim(), phone.trim(), memberLevel, source, initialBalance, initialPoints);
+        Long memberId = jdbc.queryForObject("SELECT id FROM tbl_member WHERE user_id=?", Long.class, userId.trim());
+        if (initialPoints > 0) jdbc.update("INSERT INTO tbl_points_flow(member_id,change_points,before_points,after_points,biz_type,remark) VALUES(?,?,0,?,'开通会员','初始积分')",
+                memberId, initialPoints, initialPoints);
+        return R.ok().put("id", memberId);
     }
 
     @PostMapping("/Member/updateStatus")
@@ -147,6 +176,12 @@ public class OperationsController {
     public R advertisementStatus(Long id,String status){
         if(!List.of("草稿","已上架","已下架").contains(status)) throw new RuntimeException("广告状态不合法");
         if(jdbc.update("UPDATE tbl_advertisement SET status=? WHERE id=?",status,id)!=1) throw new RuntimeException("广告不存在");
+        return R.ok();
+    }
+
+    @PostMapping("/Advertisement/delete")
+    public R deleteAdvertisement(Long id) {
+        if (id == null || jdbc.update("DELETE FROM tbl_advertisement WHERE id=?", id) != 1) throw new RuntimeException("广告不存在");
         return R.ok();
     }
 
