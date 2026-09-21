@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  商城后台管理系统 mall-sys —— 纯静态管理页面
+  后端来源：SpringBoot 项目（本目录为 src/main/resources/static）
+  技术栈：纯原生 HTML/CSS/JS，无框架、无构建、无 CDN
+  页面结构：
+    未登录 —— 居中登录卡片 / 注册卡片（两屏切换）
+    已登录 —— 左侧分组导航（工作台、商品、交易、客户、营销、数据、系统设置）
+              + 右侧内容区（顶部栏显示页面标题/登录昵称/退出按钮）
+  本轮能力：品牌 LOGO 上传/缩略图/类别关联、类别 ⇄ 品牌互相关联、属性组分页管理、
+           发布商品（商品上架 5 步链路：基本信息 → 规格参数 → 销售属性 → SKU 设置 → 保存完成，
+           每步保存成功后自动进入下一步；第 5 步「确认发布」一次性落库并自动跳转商品管理列表）、
+           商品管理（商品列表：搜索/分页/主图缩略图/详情弹窗/级联删除）、
+           经营概览（4 张 ECharts 图表，统一读取订单、会员、库存与商品真实数据）
+  JS 中所有后端接口路径与字段名契约见 js/app.js 文件头注释
+  ============================================================
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>电商数据管理平台</title>
+  <link rel="stylesheet" href="css/style.css?v=20260921-2">
+</head>
+<body>
+
+  <!-- ===================== 登录视图（未登录时唯一可见） ===================== -->
+  <section id="login-view" class="auth-view">
+    <div class="auth-card">
+      <h1 class="auth-brand">电商数据管理平台</h1>
+      <p class="auth-slogan">智能销售数据平台 · 请登录后使用</p>
+      <div class="auth-row">
+        <label for="lgAccount">账号</label>
+        <input id="lgAccount" class="form-input" type="text" placeholder="请输入登录账号"
+               autocomplete="username"
+               onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="auth-row">
+        <label for="lgPassword">密码</label>
+        <input id="lgPassword" class="form-input" type="password" placeholder="请输入密码"
+               autocomplete="current-password"
+               onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button id="btnLogin" type="button" class="btn btn-primary auth-submit"
+              onclick="doLogin()">登 录</button>
+      <p class="auth-switch">没有账号？<a onclick="showRegisterView()">去注册</a></p>
+    </div>
+  </section>
+
+  <!-- ===================== 注册视图（与登录视图两屏切换） ===================== -->
+  <section id="register-view" class="auth-view" hidden>
+    <div class="auth-card">
+      <h1 class="auth-brand">注册账号</h1>
+      <p class="auth-slogan">注册成功后将自动分配「部门职员」角色</p>
+      <div class="auth-row">
+        <label for="rgAccount">账号</label>
+        <input id="rgAccount" class="form-input" type="text" placeholder="请输入账号（登录名）"
+               autocomplete="off">
+      </div>
+      <div class="auth-row">
+        <label for="rgNickName">昵称</label>
+        <input id="rgNickName" class="form-input" type="text" placeholder="请输入昵称"
+               autocomplete="off">
+      </div>
+      <div class="auth-row">
+        <label for="rgPassword">密码</label>
+        <input id="rgPassword" class="form-input" type="password" placeholder="至少 4 位"
+               autocomplete="new-password">
+      </div>
+      <div class="auth-row">
+        <label for="rgPassword2">确认密码</label>
+        <input id="rgPassword2" class="form-input" type="password" placeholder="再次输入密码"
+               autocomplete="new-password"
+               onkeydown="if(event.key==='Enter')doRegister()">
+      </div>
+      <div class="auth-row">
+        <label for="rgPhone">手机号</label>
+        <input id="rgPhone" class="form-input" type="tel" placeholder="选填"
+               autocomplete="off">
+      </div>
+      <div class="auth-row">
+        <label for="rgSex">性别</label>
+        <select id="rgSex" class="form-input">
+          <option value="男">男</option>
+          <option value="女">女</option>
+        </select>
+      </div>
+      <div class="auth-row">
+        <label for="rgDeptId">所属部门</label>
+        <!-- 选项来自 GET /Dept/list（平铺）。未登录状态下后端返回 401 时静默降级，只保留“不分配” -->
+        <select id="rgDeptId" class="form-input"><option value="">不分配部门</option></select>
+        <p class="auth-tip">选填；不分配部门也可注册，注册后由管理员分配</p>
+      </div>
+      <button id="btnRegister" type="button" class="btn btn-primary auth-submit"
+              onclick="doRegister()">注 册</button>
+      <p class="auth-switch">已有账号？<a onclick="showLoginView()">去登录</a></p>
+    </div>
+  </section>
+
+  <!-- ===================== 主界面：左侧菜单 + 右侧内容区 ===================== -->
+  <div id="app-view" class="app-shell" hidden>
+
+    <!-- 左侧深色菜单：一级项 + 「商品管理」分组（不可点击）+ 二级缩进项 -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">电商数据管理平台
+        <span class="sidebar-sub">智能销售数据平台</span>
+      </div>
+      <nav id="menuNav" class="menu" aria-label="后台功能导航">
+        <button type="button" class="menu-item active" data-view="dashboard" data-permission="/dashboard">经营概览</button>
+        <details class="menu-section" data-permission="/goods">
+          <summary>商品中心</summary>
+          <button type="button" class="menu-item sub" data-view="goods">商品列表</button>
+          <button type="button" class="menu-item sub" data-view="publish">发布商品</button>
+          <button type="button" class="menu-item sub" data-view="inventory">库存管理</button>
+          <div class="menu-subgroup">商品基础配置</div>
+          <button type="button" class="menu-item sub deep" data-view="category">类目管理</button>
+          <button type="button" class="menu-item sub deep" data-view="brand">品牌管理</button>
+          <button type="button" class="menu-item sub deep" data-view="attrGroup">属性组</button>
+          <button type="button" class="menu-item sub deep" data-view="specAttr">规格参数</button>
+          <button type="button" class="menu-item sub deep" data-view="saleAttrManage">销售属性</button>
+        </details>
+        <details class="menu-section" data-permission="/order">
+          <summary>交易中心</summary>
+          <button type="button" class="menu-item sub" data-view="order">订单与售后</button>
+        </details>
+        <details class="menu-section" data-permission="/member">
+          <summary>客户中心</summary>
+          <button type="button" class="menu-item sub" data-view="member">会员管理</button>
+        </details>
+        <details class="menu-section" data-permission="/marketing">
+          <summary>营销中心</summary>
+          <button type="button" class="menu-item sub" data-view="activity">活动管理</button>
+          <button type="button" class="menu-item sub" data-view="advertisement">广告管理</button>
+        </details>
+        <details class="menu-section" data-permission="/analysis">
+          <summary>数据中心</summary>
+          <button type="button" class="menu-item sub" data-view="analysis">分析中心</button>
+        </details>
+        <details class="menu-section" data-permission="/system">
+          <summary>系统设置</summary>
+          <button type="button" class="menu-item sub" data-view="user">后台账号</button>
+          <button type="button" class="menu-item sub" data-view="dept">部门管理</button>
+          <button type="button" class="menu-item sub" data-view="role">角色权限</button>
+        </details>
+      </nav>
+    </aside>
+
+    <!-- 右侧：顶部栏 + 可滚动内容区 -->
+    <div class="main-area">
+      <header class="main-top">
+        <h2 class="page-title" id="pageTitle">经营概览</h2>
+        <div class="user-box">
+          <span class="user-nick" id="loginUserNick">--</span>
+          <span class="user-role" id="loginUserRole">--</span>
+          <button type="button" class="btn btn-logout" onclick="doLogout()">退出登录</button>
+        </div>
+      </header>
+
+      <main class="content">
+
+        <!-- ============ 视图一：用户管理 ============ -->
+        <section id="view-user" class="view" hidden>
+          <div class="toolbar">
+            <div class="search-group">
+              <label class="field">账号
+                <input id="uInpAccount" type="text" placeholder="输入账号"
+                       onkeydown="if(event.key==='Enter')searchUsers()">
+              </label>
+              <label class="field">昵称
+                <input id="uInpNickName" type="text" placeholder="输入昵称"
+                       onkeydown="if(event.key==='Enter')searchUsers()">
+              </label>
+              <label class="field">部门
+                <select id="uSelDeptFilter"><option value="">全部部门</option></select>
+              </label>
+              <button type="button" class="btn btn-primary" onclick="searchUsers()">查询</button>
+              <button type="button" class="btn" onclick="resetUserSearch()">重置</button>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="openUserModal(null)">＋ 新增用户</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:60px">ID</th>
+                  <th>账号</th>
+                  <th>昵称</th>
+                  <th>手机号</th>
+                  <th style="width:60px">性别</th>
+                  <th>所属部门</th>
+                  <th>角色</th>
+                  <th style="width:88px">状态</th>
+                  <th>创建日期</th>
+                  <th style="width:190px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="userTbody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="userPager"></div>
+        </section>
+
+        <!-- ============ 视图二：部门管理 ============ -->
+        <section id="view-dept" class="view" hidden>
+          <div class="toolbar">
+            <div class="search-group">
+              <span class="field-hint">树形结构：点击名称前的 ▸ / ▾ 展开或收起子部门，无需重复加载</span>
+              <label class="field">名称
+                <input id="deptTreeSearch" type="search" placeholder="搜索部门" oninput="renderDept()">
+              </label>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="openDeptModal('add', null)">＋ 新增部门</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>部门名称</th>
+                  <th>层级描述</th>
+                  <th style="width:250px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="deptTbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============ 视图三：角色管理 ============ -->
+        <section id="view-role" class="view" hidden>
+          <div class="toolbar">
+            <div class="search-group">
+              <label class="field">角色名称
+                <input id="rInpRoleName" type="text" placeholder="输入角色名称"
+                       onkeydown="if(event.key==='Enter')searchRoles()">
+              </label>
+              <button type="button" class="btn btn-primary" onclick="searchRoles()">查询</button>
+              <button type="button" class="btn" onclick="resetRoleSearch()">重置</button>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="openRoleModal(null)">＋ 新增角色</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:60px">ID</th>
+                  <th>角色名称</th>
+                  <th>角色描述</th>
+                  <th>创建日期</th>
+                  <th style="width:130px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="roleTbody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="rolePager"></div>
+        </section>
+
+        <!-- ============ 视图四：品牌管理 ============ -->
+        <section id="view-brand" class="view" hidden>
+          <div class="toolbar">
+            <div class="search-group">
+              <label class="field">品牌名称
+                <input id="bInpBrandName" type="text" placeholder="输入品牌名称"
+                       onkeydown="if(event.key==='Enter')searchBrands()">
+              </label>
+              <label class="field">类别
+                <!-- 选项来自类别树平铺（GET /Category/list），选“全部类别”则不传 categoryId -->
+                <select id="bSelCategoryFilter">
+                  <option value="">全部类别</option>
+                </select>
+              </label>
+              <button type="button" class="btn btn-primary" onclick="searchBrands()">查询</button>
+              <button type="button" class="btn" onclick="resetBrandSearch()">重置</button>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="openBrandModal(null)">＋ 新增品牌</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:60px">ID</th>
+                  <th style="width:96px">LOGO</th>
+                  <th>品牌名称</th>
+                  <th style="width:160px">LOGO 文件</th>
+                  <th>描述</th>
+                  <th style="width:92px">状态</th>
+                  <th style="width:150px">创建日期</th>
+                  <th style="width:215px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="brandTbody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="brandPager"></div>
+        </section>
+
+        <!-- ============ 视图五：类别管理（树形，模式同部门） ============ -->
+        <section id="view-category" class="view" hidden>
+          <div class="toolbar">
+            <div class="search-group">
+              <span class="field-hint">树形结构：点击名称前的 ▸ / ▾ 展开或收起子类别；删除有子类别的节点会被后端拒绝</span>
+              <label class="field">名称
+                <input id="catTreeSearch" type="search" placeholder="搜索类别" oninput="renderCategory()">
+              </label>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="openCategoryModal('add', null)">＋ 新增类别</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:70px">ID</th>
+                  <th>类别名称</th>
+                  <th>父级路径</th>
+                  <th style="width:90px">状态</th>
+                  <th style="width:60px">排序</th>
+                  <th style="width:90px">单位</th>
+                  <th style="width:150px">创建日期</th>
+                  <th style="width:380px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="catTbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============ 视图六：属性组管理（按类别筛选的分页列表） ============ -->
+        <section id="view-attrGroup" class="view" hidden>
+          <div class="toolbar">
+            <div class="search-group">
+              <label class="field">类别
+                <!-- 选项来自类别树平铺；选“全部类别”则不传 categoryId -->
+                <select id="agSelCategoryFilter">
+                  <option value="">全部类别</option>
+                </select>
+              </label>
+              <button type="button" class="btn btn-primary" onclick="searchAttrGroups()">查询</button>
+              <button type="button" class="btn" onclick="resetAttrGroupSearch()">重置</button>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="openAttrGroupModal(null)">＋ 新增属性组</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:60px">ID</th>
+                  <th>分组名称</th>
+                  <th>所属类别</th>
+                  <th>描述</th>
+                  <th>图标</th>
+                  <th style="width:70px">排序</th>
+                  <th style="width:150px">创建日期</th>
+                  <th style="width:130px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="agTbody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="agPager"></div>
+        </section>
+
+        <!-- ============ 规格参数与销售属性独立维护 ============ -->
+        <section id="view-specAttr" class="view" hidden>
+          <div class="attr-workbench">
+            <aside class="attr-category-panel">
+              <div class="panel-head"><div><strong>商品类别</strong><small>请选择第三级类别</small></div>
+                <input id="specAttrCatSearch" type="search" placeholder="筛选类别" oninput="renderAttrCategoryTree(1)"></div>
+              <div id="specAttrCatTree" class="attr-category-tree"></div>
+            </aside>
+            <div class="attr-main-panel">
+              <div class="workspace-heading"><div><span class="eyebrow">SPECIFICATION</span><h3>规格参数</h3>
+                <p id="specAttrContext">选择左侧第三级类别后维护参数</p></div>
+                <button id="specAttrAdd" type="button" class="btn btn-primary" onclick="openAttrManageModal(1,null)" disabled>＋ 新增参数</button></div>
+              <div class="toolbar attr-toolbar"><div class="search-group">
+                <label class="field">属性名称<input id="specAttrName" type="search" placeholder="输入名称" onkeydown="if(event.key==='Enter')loadManagedAttrs(1,1)"></label>
+                <label class="field">所属分组<select id="specAttrGroup"><option value="">全部分组</option></select></label>
+                <button type="button" class="btn btn-primary" onclick="loadManagedAttrs(1,1)">查询</button>
+                <button type="button" class="btn" onclick="resetManagedAttrFilters(1)">重置</button>
+              </div></div>
+              <div class="table-wrap"><table><thead><tr>
+                <th style="width:64px">ID</th><th>属性名称</th><th>所属分组</th><th style="width:90px">值类型</th>
+                <th>可选值</th><th style="width:86px">检索</th><th style="width:86px">状态</th><th style="width:130px">操作</th>
+              </tr></thead><tbody id="specAttrTbody"></tbody></table></div>
+              <div class="pager" id="specAttrPager"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-saleAttrManage" class="view" hidden>
+          <div class="attr-workbench">
+            <aside class="attr-category-panel">
+              <div class="panel-head"><div><strong>商品类别</strong><small>请选择第三级类别</small></div>
+                <input id="saleAttrManageCatSearch" type="search" placeholder="筛选类别" oninput="renderAttrCategoryTree(2)"></div>
+              <div id="saleAttrManageCatTree" class="attr-category-tree"></div>
+            </aside>
+            <div class="attr-main-panel">
+              <div class="workspace-heading"><div><span class="eyebrow">SALE ATTRIBUTE</span><h3>销售属性</h3>
+                <p id="saleAttrManageContext">选择左侧第三级类别后维护 SKU 维度</p></div>
+                <button id="saleAttrManageAdd" type="button" class="btn btn-primary" onclick="openAttrManageModal(2,null)" disabled>＋ 新增属性</button></div>
+              <div class="toolbar attr-toolbar"><div class="search-group">
+                <label class="field">属性名称<input id="saleAttrManageName" type="search" placeholder="输入名称" onkeydown="if(event.key==='Enter')loadManagedAttrs(2,1)"></label>
+                <label class="field">所属分组<select id="saleAttrManageGroup"><option value="">全部分组</option></select></label>
+                <button type="button" class="btn btn-primary" onclick="loadManagedAttrs(2,1)">查询</button>
+                <button type="button" class="btn" onclick="resetManagedAttrFilters(2)">重置</button>
+              </div></div>
+              <div class="table-wrap"><table><thead><tr>
+                <th style="width:64px">ID</th><th>属性名称</th><th>所属分组</th><th style="width:90px">值类型</th>
+                <th>可选值</th><th style="width:86px">检索</th><th style="width:86px">状态</th><th style="width:130px">操作</th>
+              </tr></thead><tbody id="saleAttrManageTbody"></tbody></table></div>
+              <div class="pager" id="saleAttrManagePager"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ 视图七：发布商品（商品上架第 1 步「基本信息」，5 步链路的第一步） ============ -->
+        <section id="view-publish" class="view" hidden>
+          <!-- 面包屑：首页 / 商品维护 / 发布商品（纯 CSS） -->
+          <nav class="pub-crumb">
+            <span>首页</span>
+            <span class="crumb-sep">/</span>
+            <span>商品维护</span>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-cur">发布商品</span>
+          </nav>
+
+          <div class="card">
+            <!-- 步骤条：5 步，当前第 1 步高亮；右侧注明后续步骤资料未覆盖 -->
+            <div class="steps-bar">
+              <ol class="steps">
+                <li class="active"><span class="step-dot">1</span><span class="step-title">基本信息</span></li>
+                <li><span class="step-dot">2</span><span class="step-title">规格参数</span></li>
+                <li><span class="step-dot">3</span><span class="step-title">销售属性</span></li>
+                <li><span class="step-dot">4</span><span class="step-title">SKU设置</span></li>
+                <li><span class="step-dot">5</span><span class="step-title">保存完成</span></li>
+              </ol>
+              <p class="steps-note">第 1 步：填写基本信息并上传主图，保存后依次进入规格参数 → 销售属性 → SKU 设置 → 保存完成</p>
+            </div>
+
+            <!-- 基础信息表单：垂直布局，label 固定 120px 右对齐（还原讲师 label-width="120px"） -->
+            <div class="pub-form">
+              <!-- 隐藏字段：pubGoodsId=保存成功返回的商品 id（供第 2 步衔接）；pubMainImg=主图文件名（随表单提交） -->
+              <input type="hidden" id="pubGoodsId">
+              <input type="hidden" id="pubMainImg">
+
+              <div class="pub-row">
+                <label class="pub-label" for="pubGoodsName">商品名称：</label>
+                <input id="pubGoodsName" type="text" class="form-input pub-w650" placeholder="商品名称"
+                       autocomplete="off">
+                <span class="hint">必填</span>
+              </div>
+
+              <div class="pub-row top">
+                <label class="pub-label" for="pubGoodsDetails">商品描述：</label>
+                <textarea id="pubGoodsDetails" class="form-input pub-w650" rows="3"
+                          placeholder="商品描述（选填）"></textarea>
+              </div>
+
+              <!-- 所属类别：原生三级联动（数据源 GET /Category/list 类别树），必须选满三级才算确认类别 -->
+              <div class="pub-row">
+                <label class="pub-label">所属类别：</label>
+                <select id="pubCat1" class="form-input pub-w200" onchange="onPubCatChange(1)">
+                  <option value="">请选择一级类别</option>
+                </select>
+                <select id="pubCat2" class="form-input pub-w200" onchange="onPubCatChange(2)" disabled>
+                  <option value="">请选择二级类别</option>
+                </select>
+                <select id="pubCat3" class="form-input pub-w200" onchange="onPubCatChange(3)" disabled>
+                  <option value="">请选择三级类别</option>
+                </select>
+                <span class="hint">必须选满三级；确认后才可加载品牌</span>
+              </div>
+
+              <!-- 选择品牌：未确认三级类别前禁用；选项来自 GET /Brand/brandOptions/{categoryId}，可不选 -->
+              <div class="pub-row">
+                <label class="pub-label" for="pubBrandId">选择品牌：</label>
+                <select id="pubBrandId" class="form-input pub-w250" disabled>
+                  <option value="">请先选择类别</option>
+                </select>
+                <span class="hint">选填，清空可取消选择</span>
+              </div>
+
+              <div class="pub-row">
+                <label class="pub-label" for="pubWeight">商品重量：</label>
+                <input id="pubWeight" type="number" min="0" step="0.01" class="form-input pub-w250"
+                       placeholder="商品重量（Kg）">
+                <span class="hint">单位 Kg，选填</span>
+              </div>
+
+              <div class="pub-row">
+                <label class="pub-label">积分设置：</label>
+                <span class="pub-inline-label">允许抵扣积分</span>
+                <input id="pubAllowDeduct" type="number" min="0" class="form-input pub-w150"
+                       placeholder="150">
+                <span class="pub-inline-label">返还积分</span>
+                <input id="pubRewardPoint" type="number" min="0" class="form-input pub-w150"
+                       placeholder="100">
+                <span class="hint">留空由后端取默认值（讲师模板默认 150 / 100）</span>
+              </div>
+
+              <!-- 商品主图：105×105 虚线方块，点击选择 → 本地预览 → 立即上传（type=1） -->
+              <div class="pub-row top">
+                <label class="pub-label">商品主图：</label>
+                <div class="pub-main-upload">
+                  <div class="pub-plus-box" id="pubMainPreview" title="点击选择商品主图"
+                       onclick="pickPubMainImg()">
+                    <span class="pub-plus">+</span>
+                  </div>
+                  <div class="pub-main-ctrl">
+                    <div>
+                      <button type="button" class="btn" id="pubPickMainBtn" onclick="pickPubMainImg()">选择图片</button>
+                      <button type="button" class="btn" id="pubRemoveMainBtn" hidden
+                              onclick="removePubMainImg()">移除</button>
+                      <span class="logo-fname" id="pubMainImgName"></span>
+                    </div>
+                    <p class="logo-tip">105 × 105 主图；jpg / png 等图片，选择后立即上传（type=1），
+                      上传成功前「下一步」不可点击</p>
+                  </div>
+                </div>
+                <!-- 隐藏的真实文件选择框：点击方块或「选择图片」触发 -->
+                <input type="file" id="pubMainImgFile" accept="image/*" hidden onchange="onPubMainImgChange()">
+              </div>
+
+              <div class="pub-actions">
+                <button type="button" class="btn" onclick="resetPublishForm(false)">重置表单</button>
+                <button type="button" class="btn btn-primary" id="btnPublishNext" disabled
+                        onclick="savePublishBaseInfo()">下一步：设置规格参数</button>
+                <span class="hint" id="pubSubmitHint">主图未上传，不可提交</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ 视图八：设置商品属性（商品上架第 2 步「规格参数」，由第 1 步保存成功后自动进入） ============ -->
+        <section id="view-setGoodsAttr" class="view" hidden>
+          <!-- 面包屑：首页 / 商品维护 / 发布商品（与第 1 步同一套样式） -->
+          <nav class="pub-crumb">
+            <span>首页</span>
+            <span class="crumb-sep">/</span>
+            <span>商品维护</span>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-cur">发布商品</span>
+          </nav>
+
+          <div class="card">
+            <!-- 步骤条：5 步，当前第 2 步高亮（贴讲师 el-steps :active="1"） -->
+            <div class="steps-bar">
+              <ol class="steps">
+                <li><span class="step-dot">1</span><span class="step-title">基本信息</span></li>
+                <li class="active"><span class="step-dot">2</span><span class="step-title">规格参数</span></li>
+                <li><span class="step-dot">3</span><span class="step-title">销售属性</span></li>
+                <li><span class="step-dot">4</span><span class="step-title">SKU设置</span></li>
+                <li><span class="step-dot">5</span><span class="step-title">保存完成</span></li>
+              </ol>
+              <p class="steps-note">第 2 步：按第 1 步确认的类别加载规格参数（attrType=1），逐项填写属性值</p>
+            </div>
+
+            <!-- 属性行由 JS 渲染（listByCategory 拉取 → 单值 input+datalist / 多值标签选择）；列表扁平无分组 -->
+            <div class="pub-form" id="attrFormList"></div>
+
+            <div class="pub-actions">
+              <button type="button" class="btn" onclick="resetSetGoodsAttrForm()">重置表单</button>
+              <button type="button" class="btn btn-primary" id="btnAttrNext"
+                      onclick="saveSetGoodsAttrValues()">下一步：设置销售属性</button>
+              <span class="hint" id="attrSubmitHint"></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ 视图九：销售属性（商品上架第 3 步，由第 2 步保存成功后自动进入） ============ -->
+        <section id="view-saleAttr" class="view" hidden>
+          <!-- 面包屑：首页 / 商品维护 / 发布商品（与第 1、2 步同一套样式） -->
+          <nav class="pub-crumb">
+            <span>首页</span>
+            <span class="crumb-sep">/</span>
+            <span>商品维护</span>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-cur">发布商品</span>
+          </nav>
+
+          <div class="card">
+            <!-- 步骤条：5 步，当前第 3 步高亮（贴讲师 el-steps :active="2"） -->
+            <div class="steps-bar">
+              <ol class="steps">
+                <li><span class="step-dot">1</span><span class="step-title">基本信息</span></li>
+                <li><span class="step-dot">2</span><span class="step-title">规格参数</span></li>
+                <li class="active"><span class="step-dot">3</span><span class="step-title">销售属性</span></li>
+                <li><span class="step-dot">4</span><span class="step-title">SKU设置</span></li>
+                <li><span class="step-dot">5</span><span class="step-title">保存完成</span></li>
+              </ol>
+              <p class="steps-note">第 3 步：按第 1 步确认的类别加载销售属性（attrType=2），填写后进入 SKU 设置</p>
+            </div>
+
+            <!-- 属性行由 JS 渲染（listByCategory attrType=2 → 单值 input+datalist / 多值标签选择）；列表扁平无分组 -->
+            <div class="pub-form" id="saleAttrFormList"></div>
+
+            <div class="pub-actions">
+              <button type="button" class="btn" onclick="resetSaleAttrForm()">重置表单</button>
+              <button type="button" class="btn btn-primary" id="btnSaleAttrNext"
+                      onclick="saveSaleAttrValues()">下一步：设置SKU</button>
+              <span class="hint" id="saleAttrSubmitHint"></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ 视图十：SKU 设置（商品上架第 4 步，由第 3 步保存成功后自动进入） ============ -->
+        <section id="view-setSku" class="view" hidden>
+          <!-- 面包屑：首页 / 商品维护 / 发布商品（与前几步同一套样式） -->
+          <nav class="pub-crumb">
+            <span>首页</span>
+            <span class="crumb-sep">/</span>
+            <span>商品维护</span>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-cur">发布商品</span>
+          </nav>
+
+          <div class="card">
+            <!-- 步骤条：5 步，当前第 4 步高亮（贴讲师 el-steps :active="3"） -->
+            <div class="steps-bar">
+              <ol class="steps">
+                <li><span class="step-dot">1</span><span class="step-title">基本信息</span></li>
+                <li><span class="step-dot">2</span><span class="step-title">规格参数</span></li>
+                <li><span class="step-dot">3</span><span class="step-title">销售属性</span></li>
+                <li class="active"><span class="step-dot">4</span><span class="step-title">SKU设置</span></li>
+                <li><span class="step-dot">5</span><span class="step-title">保存完成</span></li>
+              </ol>
+              <p class="steps-note">第 4 步：销售属性值的组合（笛卡尔积）自动生成 SKU 行，逐行填写价格与库存</p>
+            </div>
+
+            <!-- SKU 表格由 JS 渲染（列 = 各销售属性值 + 价格 + 库存 + SKU 名称；组合行多时表格限高滚动） -->
+            <div class="pub-form" id="skuFormArea"></div>
+
+            <!-- 操作区对齐表格左边缘（无 label 栏，故不用 .pub-actions 的 130px 缩进） -->
+            <div class="sku-actions">
+              <button type="button" class="btn btn-primary" id="btnSkuSave"
+                      onclick="saveSkuValues()">保存 SKU</button>
+              <span class="hint" id="skuSubmitHint"></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ 视图十一：保存完成（商品上架第 5 步，由第 4 步保存成功后自动进入） ============ -->
+        <section id="view-finish" class="view" hidden>
+          <!-- 面包屑：首页 / 商品维护 / 发布商品（与前四步同一套样式） -->
+          <nav class="pub-crumb">
+            <span>首页</span>
+            <span class="crumb-sep">/</span>
+            <span>商品维护</span>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-cur">发布商品</span>
+          </nav>
+
+          <div class="card">
+            <!-- 步骤条：5 步，当前第 5 步高亮（贴讲师 el-steps :active="4"） -->
+            <div class="steps-bar">
+              <ol class="steps">
+                <li><span class="step-dot">1</span><span class="step-title">基本信息</span></li>
+                <li><span class="step-dot">2</span><span class="step-title">规格参数</span></li>
+                <li><span class="step-dot">3</span><span class="step-title">销售属性</span></li>
+                <li><span class="step-dot">4</span><span class="step-title">SKU设置</span></li>
+                <li class="active"><span class="step-dot">5</span><span class="step-title">保存完成</span></li>
+              </ol>
+              <p class="steps-note">第 5 步：核对下方暂存信息后点击「确认发布」，一次性写入数据库</p>
+            </div>
+
+            <!-- 发布信息汇总卡片：发布键 / 所属类别 / 销售属性摘要，内容由 JS 渲染（renderFinishSummary） -->
+            <div class="pub-form">
+              <div class="pub-row">
+                <label class="pub-label">发布键：</label>
+                <!-- 无发布键（第 1 步未完成）→ 空态提示，且「确认发布」禁用 -->
+                <span class="finish-value" id="finishPubKey"></span>
+              </div>
+              <div class="pub-row">
+                <label class="pub-label">所属类别：</label>
+                <!-- categoryId（localStorage，第 1 步确认的三级类别）→ 类别树映射名称 -->
+                <span class="finish-value" id="finishCategory"></span>
+              </div>
+              <div class="pub-row top">
+                <label class="pub-label">销售属性：</label>
+                <!-- localStorage.saleAttr（第 3 步保存时写入）→ 「属性名：值1 / 值2」逐行；无则「未设置」 -->
+                <div class="finish-value" id="finishSaleAttr"></div>
+              </div>
+              <p class="finish-tip">点击【确认发布】将把基本信息、规格参数、销售属性、SKU 数据一次性写入数据库，
+                并清除暂存缓存。</p>
+            </div>
+
+            <div class="pub-actions">
+              <button type="button" class="btn" id="btnFinishBack"
+                      onclick="switchView('setSku')">返回上一步</button>
+              <button type="button" class="btn btn-primary" id="btnFinishSubmit"
+                      onclick="submitPublishGoods()">确认发布</button>
+              <span class="hint" id="finishSubmitHint"></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ 视图十二：商品管理（发布链路的最终闭环：搜索 + 分页 + 查看详情 / 删除） ============ -->
+        <section id="view-goods" class="view" hidden>
+          <div class="toolbar">
+            <div class="search-group">
+              <label class="field">商品名称
+                <input id="gInpGoodsName" type="text" placeholder="输入商品名称"
+                       onkeydown="if(event.key==='Enter')searchGoods()">
+              </label>
+              <button type="button" class="btn btn-primary" onclick="searchGoods()">查询</button>
+              <button type="button" class="btn" onclick="resetGoodsSearch()">重置</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:60px">ID</th>
+                  <th style="width:64px">主图</th>
+                  <th>商品名称</th>
+                  <th>所属类别</th>
+                  <th>品牌</th>
+                  <th style="width:130px">售价</th>
+                  <th style="width:100px">重量(Kg)</th>
+                  <th style="width:90px">状态</th>
+                  <th style="width:150px">创建日期</th>
+                  <th style="width:280px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="goodsTbody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="goodsPager"></div>
+        </section>
+
+        <!-- ============ 订单管理：样本订单查询、状态流转与详情 ============ -->
+        <section id="view-order" class="view" hidden>
+          <div class="order-tabs" id="orderStatusTabs" aria-label="订单状态筛选">
+            <button type="button" class="order-tab active" data-status="">全部 <span id="orderCountAll">0</span></button>
+            <button type="button" class="order-tab" data-status="待付款">待付款 <span id="orderCountPendingPay">0</span></button>
+            <button type="button" class="order-tab" data-status="待发货">待发货 <span id="orderCountPendingShip">0</span></button>
+            <button type="button" class="order-tab" data-status="已发货">已发货 <span id="orderCountShipped">0</span></button>
+            <button type="button" class="order-tab" data-status="已完成">已完成 <span id="orderCountDone">0</span></button>
+            <button type="button" class="order-tab" data-status="已取消">已取消 <span id="orderCountCancelled">0</span></button>
+          </div>
+
+          <div class="toolbar order-toolbar">
+            <div class="search-group">
+              <label class="field">订单号<input id="oInpOrderId" type="text" placeholder="输入订单号"></label>
+              <label class="field">用户<input id="oInpUserId" type="text" placeholder="输入用户编号"></label>
+              <label class="field">商品<input id="oInpProductName" type="text" placeholder="输入商品名称"></label>
+              <label class="field">渠道<select id="oSelChannel"><option value="">全部渠道</option><option>APP</option><option>小程序</option><option>PC网页</option></select></label>
+              <label class="field">下单日期<input id="oStartDate" type="date"></label>
+              <span class="date-separator">至</span>
+              <label class="field"><span class="sr-only">结束日期</span><input id="oEndDate" type="date"></label>
+              <button type="button" class="btn btn-primary" onclick="searchOrders()">查询</button>
+              <button type="button" class="btn" onclick="resetOrderSearch()">重置</button>
+            </div>
+          </div>
+
+          <div class="table-wrap order-table-wrap">
+            <table class="order-table">
+              <thead><tr>
+                <th>订单号</th><th>商品信息</th><th>买家</th><th>实付金额</th><th>渠道</th>
+                <th>下单时间</th><th>售后</th><th>状态</th><th style="width:190px">操作</th>
+              </tr></thead>
+              <tbody id="orderTbody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="orderPager"></div>
+        </section>
+
+        <section id="view-inventory" class="view" hidden>
+          <div class="metric-strip" id="inventoryMetrics"></div>
+          <div class="toolbar operation-toolbar"><div class="search-group">
+            <label class="field">商品/SKU<input id="invKeyword" placeholder="名称或编码"></label>
+            <label class="field">仓库<select id="invWarehouse"><option value="">全部仓库</option></select></label>
+            <label class="check-line"><input id="invWarning" type="checkbox"> 只看预警</label>
+            <button class="btn btn-primary" type="button" onclick="loadInventory(1)">查询</button>
+            <button class="btn" type="button" onclick="resetInventory()">重置</button>
+          </div></div>
+          <div class="table-wrap"><table class="operation-table"><thead><tr><th>SKU编码</th><th>商品</th><th>仓库</th><th>可用库存</th><th>锁定</th><th>预警值</th><th>成本单价</th><th>库存状态</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="inventoryTbody"></tbody></table></div>
+          <div class="pager" id="inventoryPager"></div>
+        </section>
+
+        <section id="view-activity" class="view" hidden>
+          <div class="toolbar operation-toolbar"><div class="search-group">
+            <label class="field">活动名称<input id="actKeyword" placeholder="输入活动名称"></label>
+            <label class="field">状态<select id="actStatus"><option value="">全部状态</option><option>未开始</option><option>进行中</option><option>已暂停</option><option>已结束</option></select></label>
+            <button class="btn btn-primary" type="button" onclick="loadActivities(1)">查询</button><button class="btn" type="button" onclick="resetActivities()">重置</button>
+          </div><button class="btn btn-primary" type="button" onclick="openActivityForm()">新增活动</button></div>
+          <div class="table-wrap"><table class="operation-table"><thead><tr><th>活动名称</th><th>类型</th><th>优惠规则</th><th>商品范围</th><th>有效期</th><th>领取/总量</th><th>状态</th><th>操作</th></tr></thead><tbody id="activityTbody"></tbody></table></div><div class="pager" id="activityPager"></div>
+        </section>
+
+        <section id="view-member" class="view" hidden>
+          <div class="metric-strip" id="memberMetrics"></div>
+          <div class="toolbar operation-toolbar"><div class="search-group">
+            <label class="field">会员<input id="memKeyword" placeholder="编号/昵称/手机号"></label>
+            <label class="field">等级<select id="memLevel"><option value="">全部等级</option><option>普通会员</option><option>VIP会员</option><option>黄金会员</option></select></label>
+            <label class="field">状态<select id="memStatus"><option value="">全部状态</option><option>正常</option><option>黑名单</option></select></label>
+            <button class="btn btn-primary" type="button" onclick="loadMembers(1)">查询</button><button class="btn" type="button" onclick="resetMembers()">重置</button>
+          </div></div>
+          <div class="table-wrap"><table class="operation-table"><thead><tr><th>会员编号</th><th>昵称</th><th>手机号</th><th>等级</th><th>来源</th><th>余额</th><th>积分</th><th>累计消费</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="memberTbody"></tbody></table></div><div class="pager" id="memberPager"></div>
+        </section>
+
+        <section id="view-advertisement" class="view" hidden>
+          <div class="toolbar operation-toolbar"><div class="search-group">
+            <label class="field">广告名称<input id="adKeyword" placeholder="输入广告名称"></label>
+            <label class="field">位置<select id="adPlacement"><option value="">全部位置</option><option>首页轮播</option><option>首页横幅</option><option>分类页焦点图</option></select></label>
+            <label class="field">状态<select id="adStatus"><option value="">全部状态</option><option>草稿</option><option>已上架</option><option>已下架</option></select></label>
+            <button class="btn btn-primary" type="button" onclick="loadAdvertisements(1)">查询</button><button class="btn" type="button" onclick="resetAdvertisements()">重置</button>
+          </div><button class="btn btn-primary" type="button" onclick="openAdvertisementForm()">新增广告</button></div>
+          <div class="table-wrap"><table class="operation-table"><thead><tr><th>广告名称</th><th>投放位置</th><th>跳转链接</th><th>权重</th><th>投放时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="advertisementTbody"></tbody></table></div><div class="pager" id="advertisementPager"></div>
+        </section>
+
+        <section id="view-analysis" class="view" hidden>
+          <div class="toolbar operation-toolbar"><div class="search-group"><label class="field">批次日期<input id="analysisBatchDate" type="date" value="2026-09-20"></label><label class="field">明细搜索<input id="analysisKeyword" placeholder="用户/商品/订单/会话"></label><button class="btn" type="button" onclick="loadAnalysisDetail(1)">筛选</button><button class="btn" type="button" onclick="resetAnalysisFilter()">重置</button><span id="analysisBatchStatus" class="field-hint">正在读取最近批次…</span></div><div class="search-group"><button id="analysisRunBtn" class="btn btn-primary" type="button" onclick="runAnalysisBatch()">重新运行</button><button class="btn" type="button" onclick="exportAnalysis()">导出 CSV</button></div></div>
+          <div id="warehouseStatus" class="warehouse-status" role="status">正在检查 Hadoop / Hive…</div>
+          <div id="analysisPipeline" class="pipeline-strip" role="status">正在读取数据链路…</div>
+          <div class="analysis-tabs" id="analysisTabs">
+            <button class="analysis-tab active" data-kind="behavior">用户行为</button><button class="analysis-tab" data-kind="sales">订单销售</button><button class="analysis-tab" data-kind="review">评价舆情</button><button class="analysis-tab" data-kind="service">客服咨询</button>
+          </div>
+          <div class="metric-strip analysis-metrics" id="analysisMetrics"></div>
+          <div class="analysis-grid"><div class="analysis-panel"><h3 id="analysisPrimaryTitle">趋势分布</h3><div id="analysisPrimaryChart" class="analysis-chart"></div></div><div class="analysis-panel"><h3 id="analysisSecondaryTitle">结构分布</h3><div id="analysisSecondaryChart" class="analysis-chart"></div></div></div>
+          <div class="analysis-panel analysis-detail"><h3 id="analysisDetailTitle">明细</h3><div class="table-wrap flat"><table><thead id="analysisDetailHead"></thead><tbody id="analysisDetailBody"></tbody></table></div><div class="pager" id="analysisDetailPager"></div></div>
+        </section>
+
+        <!-- ============ 视图十三：数据概览（ECharts 仪表盘，2×2 图表；图表库 js/vendor/echarts.min.js） ============ -->
+        <section id="view-dashboard" class="view">
+          <div class="card">
+            <div class="dash-head">
+              <span class="dash-title">经营概览</span>
+              <span class="field-hint">销售、订单、会员和库存指标均来自当前业务数据</span>
+            </div>
+
+            <div class="metric-strip" id="dashMetrics"></div>
+
+            <div class="dash-grid">
+              <div class="chart-card">
+                <div class="chart-title">每日成交金额<span class="chart-tag live">实时</span></div>
+                <div id="deptBarChart" class="chart-box"></div>
+              </div>
+
+              <div class="chart-card">
+                <div class="chart-title">订单状态分布<span class="chart-tag live">实时</span></div>
+                <div id="quarterBarChart" class="chart-box"></div>
+              </div>
+
+              <div class="chart-card">
+                <div class="chart-title">品类成交结构<span class="chart-tag live">实时</span></div>
+                <div id="monthLineChart" class="chart-box"></div>
+              </div>
+
+              <div class="chart-card">
+                <div class="chart-title">热销商品销量<span class="chart-tag live">实时</span></div>
+                <div id="productPieChart" class="chart-box"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ===================== 用户新增/编辑弹窗 ===================== -->
+  <div class="modal-mask" id="userModal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <span id="userModalTitle">新增用户</span>
+        <button type="button" class="icon-btn modal-close" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <!--
+          隐藏字段：记住编辑行的 id 与 roleId（编辑回显一律用列表行数据，
+          因为列表行含 roleId/deptId，而 /User/get 详情没有角色信息）。
+          no/email 不在表单里展示，但从行数据透传，避免编辑保存时把后端已有值清空。
+        -->
+        <input type="hidden" id="umId">
+        <input type="hidden" id="umHiddenRoleId">
+        <input type="hidden" id="umHiddenNo">
+        <input type="hidden" id="umHiddenEmail">
+
+        <div class="form-row">
+          <label class="form-label" for="umAccount">账号</label>
+          <input id="umAccount" type="text" class="form-input" placeholder="登录账号"
+                 autocomplete="off">
+          <span class="hint">新增时可填；编辑时置灰只读</span>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="umNickName">昵称</label>
+          <input id="umNickName" type="text" class="form-input" placeholder="用户昵称"
+                 autocomplete="off">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="umPhone">手机号</label>
+          <input id="umPhone" type="text" class="form-input" placeholder="手机号"
+                 autocomplete="off">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="umSex">性别</label>
+          <select id="umSex" class="form-input">
+            <option value="男">男</option>
+            <option value="女">女</option>
+          </select>
+          <span class="hint">数据库 enum 仅允许 男/女</span>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="umDept">部门</label>
+          <select id="umDept" class="form-input">
+            <option value="">不分配（无部门）</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="umRole">角色</label>
+          <select id="umRole" class="form-input">
+            <option value="">不分配（无角色）</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="closeModal('userModal')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="saveUser()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 部门新增/编辑弹窗 ===================== -->
+  <div class="modal-mask" id="deptModal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <span id="deptModalTitle">新增部门</span>
+        <button type="button" class="icon-btn modal-close" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="dmId">
+        <div class="form-row">
+          <label class="form-label" for="dmName">部门名称</label>
+          <input id="dmName" type="text" class="form-input" placeholder="必填"
+                 autocomplete="off">
+          <span class="hint">必填</span>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="dmDesc">部门描述</label>
+          <input id="dmDesc" type="text" class="form-input" placeholder="选填"
+                 autocomplete="off">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="dmParent">上级部门</label>
+          <select id="dmParent" class="form-input">
+            <option value="0">无（作为顶层部门）</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="closeModal('deptModal')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="saveDept()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 角色新增/编辑弹窗 ===================== -->
+  <div class="modal-mask" id="roleModal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <span id="roleModalTitle">新增角色</span>
+        <button type="button" class="icon-btn modal-close" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="rmId">
+        <div class="form-row">
+          <label class="form-label" for="rmName">角色名称</label>
+          <input id="rmName" type="text" class="form-input" placeholder="必填"
+                 autocomplete="off">
+          <span class="hint">必填</span>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="rmDesc">角色描述</label>
+          <input id="rmDesc" type="text" class="form-input" placeholder="选填"
+                 autocomplete="off">
+        </div>
+        <div class="form-row">
+          <span class="form-label">菜单权限</span>
+          <div id="rmPermissions" class="permission-grid"><span class="hint">加载中…</span></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="closeModal('roleModal')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="saveRole()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 品牌新增/编辑弹窗 ===================== -->
+  <div class="modal-mask" id="brandModal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <span id="brandModalTitle">新增品牌</span>
+        <button type="button" class="icon-btn modal-close" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="bmId">
+        <!-- bmLogoName 为隐藏字段：由“选择图片→上传成功”回填新文件名，保存时随表单提交 -->
+        <input type="hidden" id="bmLogoName">
+        <div class="form-row">
+          <label class="form-label" for="bmBrandName">品牌名称</label>
+          <input id="bmBrandName" type="text" class="form-input" placeholder="必填"
+                 autocomplete="off">
+          <span class="hint">必填</span>
+        </div>
+        <div class="form-row top">
+          <label class="form-label">LOGO 图片</label>
+          <div class="logo-upload">
+            <!-- 预览：有图 → <img>（showImg 直连 / 上传后 objectURL），无图 → “无LOGO”占位 -->
+            <div class="logo-preview" id="bmLogoPreview"><span class="no-logo">无LOGO</span></div>
+            <div class="logo-upload-ctrl">
+              <div>
+                <button type="button" class="btn" onclick="pickLogoFile()">选择图片</button>
+                <button type="button" class="btn" id="bmRemoveLogoBtn" hidden
+                        onclick="removeLogoFile()">移除</button>
+                <span class="logo-fname" id="bmLogoNameText"></span>
+              </div>
+              <p class="logo-tip">jpg / png 等图片；选择后先上传（字段名 file），成功自动回填文件名，保存时一并提交</p>
+            </div>
+          </div>
+          <!-- 隐藏的真实文件选择框：点击“选择图片”触发，选中即上传 -->
+          <input type="file" id="bmLogoFile" accept="image/*" hidden onchange="onLogoFileChange()">
+        </div>
+        <div class="form-row top">
+          <label class="form-label" for="bmBrandDesc">品牌描述</label>
+          <textarea id="bmBrandDesc" class="form-input" rows="3" placeholder="选填，品牌简介"></textarea>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="bmShowStatus">状态</label>
+          <select id="bmShowStatus" class="form-input">
+            <option value="1">显示</option>
+            <option value="0">隐藏</option>
+          </select>
+          <span class="hint">1=显示 0=隐藏</span>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="closeModal('brandModal')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="saveBrand()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 类别新增/编辑弹窗 ===================== -->
+  <div class="modal-mask" id="categoryModal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <span id="categoryModalTitle">新增类别</span>
+        <button type="button" class="icon-btn modal-close" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="cmId">
+        <div class="form-row">
+          <label class="form-label" for="cmCategoryName">类别名称</label>
+          <input id="cmCategoryName" type="text" class="form-input" placeholder="必填"
+                 autocomplete="off">
+          <span class="hint">必填</span>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="cmParent">上级类别</label>
+          <!-- 编辑时排除自身及全部后代（防成环），选项带“─ ”层级前缀 -->
+          <select id="cmParent" class="form-input">
+            <option value="0">无（作为顶层类别）</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="cmShowStatus">状态</label>
+          <select id="cmShowStatus" class="form-input">
+            <option value="1">上架</option>
+            <option value="0">下架</option>
+          </select>
+          <span class="hint">1=上架 0=下架</span>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="cmSort">排序</label>
+          <input id="cmSort" type="number" class="form-input" min="0" placeholder="数值越小越靠前"
+                 autocomplete="off">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="cmIcons">图标</label>
+          <input id="cmIcons" type="text" class="form-input" placeholder="选填，图标文件名/样式名"
+                 autocomplete="off">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="cmProductUnit">单位</label>
+          <input id="cmProductUnit" type="text" class="form-input" placeholder="如 件 / 台 / 箱"
+                 autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="closeModal('categoryModal')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="saveCategory()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 品牌 ⇄ 类别 关联弹窗（品牌页“关联类别”操作打开） =====================
+       列表内容由 JS 渲染（类别整树平铺 + checkbox，缩进体现层级，无父子联动）：
+       打开时 GET /Brand/associatedCategories 取已勾选集合，保存时对勾选/原集合做差分提交 -->
+  <div class="modal-mask" id="brandAssocModal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <span>关联类别</span>
+        <button type="button" class="icon-btn modal-close" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-tip" id="bamTip"></p>
+        <div class="pick-list" id="bamList"></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="closeModal('brandAssocModal')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="saveBrandAssoc()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 类别 ⇄ 品牌 关联弹窗（类别页“关联品牌”操作打开） =====================
+       列表为全量品牌（POST /Brand/list page:1 limit:500）平铺 checkbox；
+       打开时 GET /Category/associatedBrands 取已勾选集合，保存时差分提交 -->
+  <div class="modal-mask" id="catAssocModal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <span>关联品牌</span>
+        <button type="button" class="icon-btn modal-close" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-tip" id="camTip"></p>
+        <div class="pick-list" id="camList"></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="closeModal('catAssocModal')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="saveCatAssoc()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 属性组新增/编辑弹窗 ===================== -->
+  <div class="modal-mask" id="attrGroupModal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <span id="attrGroupModalTitle">新增属性组</span>
+        <button type="button" class="icon-btn modal-close" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="gmId">
+        <div class="form-row">
+          <label class="form-label" for="gmName">分组名称</label>
+          <input id="gmName" type="text" class="form-input" placeholder="必填"
+                 autocomplete="off">
+          <span class="hint">必填</span>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="gmCategory">所属类别</label>
+          <!-- 选项来自类别树平铺，带“─ ”层级前缀 -->
+          <select id="gmCategory" class="form-input">
+            <option value="">无（不关联类别）</option>
+          </select>
+        </div>
+        <div class="form-row top">
+          <label class="form-label" for="gmDesc">描述</label>
+          <textarea id="gmDesc" class="form-input" rows="3" placeholder="选填，分组用途说明"></textarea>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="gmIcons">图标</label>
+          <input id="gmIcons" type="text" class="form-input" placeholder="选填，图标文件名/样式名"
+                 autocomplete="off">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="gmSort">排序</label>
+          <input id="gmSort" type="number" class="form-input" min="0" placeholder="数值越小越靠前"
+                 autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="closeModal('attrGroupModal')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="saveAttrGroup()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 商品属性新增/编辑弹窗 ===================== -->
+  <div class="modal-mask" id="attrManageModal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <span id="attrManageModalTitle">新增规格参数</span>
+        <button type="button" class="icon-btn modal-close" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="amId"><input type="hidden" id="amType">
+        <div class="form-row"><label class="form-label">所属类别</label><div id="amCategoryLabel" class="form-static">—</div></div>
+        <div class="form-row"><label class="form-label" for="amName">属性名称</label><input id="amName" class="form-input" type="text" placeholder="必填"></div>
+        <div class="form-row"><label class="form-label" for="amValueType">值类型</label><select id="amValueType" class="form-input"><option value="1">单值</option><option value="2">多值</option></select></div>
+        <div class="form-row top"><label class="form-label" for="amValues">可选值</label><textarea id="amValues" class="form-input" rows="3" placeholder="多个值使用英文分号分隔，例如：黑色;白色;蓝色"></textarea></div>
+        <div class="form-row"><label class="form-label" for="amGroup">所属分组</label><select id="amGroup" class="form-input"><option value="">不分组</option></select></div>
+        <div class="form-row"><label class="form-label">开关</label>
+          <label class="check-line"><input id="amSearchEnable" type="checkbox"> 可用于检索</label>
+          <label class="check-line"><input id="amEnable" type="checkbox" checked> 启用</label></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="closeModal('attrManageModal')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="saveManagedAttr()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 商品详情弹窗（商品管理页“查看”操作打开） =====================
+       内容由 JS 渲染（GET /Goods/get?id=）：基础信息（主图大图 + 字段）
+       + 属性两块（按 attrType：1=规格参数/基本属性、2=销售属性）+ SKU 表格（名称/价格/库存/规格明细） -->
+  <div class="modal-mask" id="goodsModal" hidden>
+    <div class="modal-card modal-wide">
+      <div class="modal-head">
+        <span id="goodsModalTitle">商品详情</span>
+        <button type="button" class="icon-btn modal-close" title="关闭">✕</button>
+      </div>
+      <div class="modal-body" id="goodsDetailBody"></div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="closeModal('goodsModal')">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 商品完整编辑：主图、基础信息、规格参数、销售属性与 SKU 一次提交 -->
+  <div class="modal-mask" id="goodsEditModal" hidden>
+    <div class="modal-card modal-goods-edit">
+      <div class="modal-head">
+        <span>编辑商品</span>
+        <button type="button" class="icon-btn modal-close" title="关闭">✕</button>
+      </div>
+      <div class="modal-body" id="goodsEditBody"></div>
+      <div class="modal-foot">
+        <span class="hint goods-edit-save-hint">保存后列表、详情与 SKU 数据会同步更新</span>
+        <button type="button" class="btn" onclick="closeModal('goodsEditModal')">取消</button>
+        <button type="button" class="btn btn-primary" id="goodsEditSaveBtn" onclick="saveGoodsEdit()">保存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="orderDetailModal" hidden>
+    <div class="modal-card modal-wide order-detail-modal">
+      <div class="modal-head">
+        <span>订单详情</span>
+        <button type="button" class="icon-btn modal-close" title="关闭">✕</button>
+      </div>
+      <div class="modal-body" id="orderDetailBody"></div>
+      <div class="modal-foot"><button type="button" class="btn" onclick="closeModal('orderDetailModal')">关闭</button></div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="operationModal" hidden>
+    <div class="modal-card modal-wide">
+      <div class="modal-head"><span id="operationModalTitle">业务操作</span><button type="button" class="icon-btn modal-close" title="关闭">✕</button></div>
+      <div class="modal-body" id="operationModalBody"></div>
+      <div class="modal-foot"><button type="button" class="btn" onclick="closeModal('operationModal')">取消</button><button type="button" class="btn btn-primary" id="operationModalSubmit">保存</button></div>
+    </div>
+  </div>
+
+  <!-- ===================== 浮动提示 ===================== -->
+  <div id="toastBox" class="toast-box"></div>
+
+  <!-- 图表库：ECharts 5.4.3 本地文件（无 CDN），必须在 app.js 之前加载（app.js 直接引用全局 echarts） -->
+  <script src="js/vendor/echarts.min.js"></script>
+  <script src="js/app.js?v=20260921-3"></script>
+  <script src="js/phase1.js?v=20260920-1"></script>
+  <script src="js/order.js?v=20260920-1"></script>
+  <script src="js/operations.js?v=20260921-1"></script>
+</body>
+</html>

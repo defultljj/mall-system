@@ -1,0 +1,29 @@
+# Build output and local tooling
+target/
+.tools/
+.idea/
+.workbuddy/
+.docx_render/
+tasks/
+db/backup-*.sql
+
+# Local runtime and IDE files
+*.log
+*.out
+*.err
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# Machine-specific configuration
+src/main/resources/application.properties
+upload/*
+!upload/goods/
+!upload/brand/
+!upload/album/
+
+# OS files
+.DS_Store
+Thumbs.db

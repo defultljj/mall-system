@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+	PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    GoodsAttrMapper.xml — 规格参数模块(属性主表 + 可选值表 + 分组关系表)
+    1. getGoodsAttrList       属性联表分页: attr LEFT JOIN 关系表 LEFT JOIN 分组表,
+                              附带 attrGroupId/groupName; 动态条件, 分页交给 MP 插件(不写 limit)
+    2. getAttrValByAttrId     按属性 id 批量取"可选值定义"(spu_id IS NULL)
+    3. addGoodsAttrVal        写属性可选值(spu_id 固定 NULL)
+    4. removeGoodsAttrVal     删属性可选值(只删 spu_id IS NULL 的定义行)
+    5. addGroupAttrRelation   属性 ↔ 分组 绑定
+    6. removeGroupAttrRelation 解绑属性与分组
+    别名约定: att=属性表, ra=关系表, grp=分组表 —— 不用 ur 这类短名,
+              避免分页插件 count 优化时 JSqlParser 把短别名误判成 SQL 关键字。
+-->
+<mapper namespace="com.gec.dao.GoodsAttrMapper">
+
+    <!-- 1.属性分页列表 -->
+    <select id="getGoodsAttrList" resultType="com.gec.domain.bo.GoodsAttrBO">
+        SELECT
+            att.id            AS id,
+            att.attr_name     AS attrName,
+            att.category_id   AS categoryId,
+            att.attr_type     AS attrType,
+            att.value_type    AS valueType,
+            att.attr_value    AS attrValue,
+            att.enable        AS enable,
+            att.search_enable AS searchEnable,
+            att.create_date   AS createDate,
+            att.update_date   AS updateDate,
+            ra.attr_group_id  AS attrGroupId,
+            grp.group_name    AS groupName
+        FROM tbl_goods_attr att
+        LEFT JOIN tbl_group_attr_relation ra ON ra.attr_id = att.id
+        LEFT JOIN tbl_goods_attr_group   grp ON grp.id = ra.attr_group_id
+        <where>
+            <if test="param != null">
+                <if test="param.attrName != null and param.attrName != ''">
+                    AND att.attr_name LIKE CONCAT('%', #{param.attrName}, '%')
+                </if>
+                <if test="param.categoryId != null">
+                    AND att.category_id = #{param.categoryId}
+                </if>
+                <if test="param.attrType != null">
+                    AND att.attr_type = #{param.attrType}
+                </if>
+                <if test="param.attrGroupId != null">
+                    AND ra.attr_group_id = #{param.attrGroupId}
+                </if>
+            </if>
+        </where>
+        ORDER BY att.id
+    </select>
+
+    <!-- 2.按属性 id 批量取"可选值定义".
+         加上 AND spu_id IS NULL: 值表一行两义 —— spu_id 为 NULL 才是"属性可选值定义",
+         spu_id 有值的是某 SPU 已选中的值; 不过滤会把 SPU 绑定数据也混进来(重复行隐患)。
+         照抄的 ResultType 实体 GoodsAttrValue 由全局下划线转驼峰自动映射。 -->
+    <select id="getAttrValByAttrId" resultType="com.gec.domain.entity.GoodsAttrValue">
+        SELECT *
+        FROM tbl_goods_attr_value
+        WHERE attr_id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND spu_id IS NULL
+    </select>
+
+    <!-- 3.写属性可选值: spu_id 固定 NULL(属性维护阶段写的是"可选值定义", 还没有 SPU);
+         attr_id 用 VO 的 id(Service 里已回填主表自增 id)。 -->
+    <insert id="addGoodsAttrVal">
+        INSERT INTO tbl_goods_attr_value(spu_id, attr_id, value_type, attr_value)
+        VALUES(NULL, #{id}, #{valueType}, #{attrValue})
+    </insert>
+
+    <!-- 4.删属性可选值: 同样只删 spu_id IS NULL 的"定义"行, SPU 已绑定的值不受影响 -->
+    <delete id="removeGoodsAttrVal">
+        DELETE FROM tbl_goods_attr_value
+        WHERE attr_id = #{attrId}
+          AND spu_id IS NULL
+    </delete>
+
+    <!-- 5.绑定属性与分组 -->
+    <insert id="addGroupAttrRelation">
+        INSERT INTO tbl_group_attr_relation(attr_group_id, attr_id)
+        VALUES(#{attrGroupId}, #{attrId})
+    </insert>
+
+    <!-- 6.解绑: 一个属性只属于一个分组, 直接按 attr_id 清掉旧关系 -->
+    <delete id="removeGroupAttrRelation">
+        DELETE FROM tbl_group_attr_relation
+        WHERE attr_id = #{attrId}
+    </delete>
+
+    <select id="countSpuValues" resultType="int">
+        SELECT count(1) FROM tbl_goods_attr_value
+        WHERE attr_id = #{attrId} AND spu_id IS NOT NULL
+    </select>
+
+    <select id="countSkuValues" resultType="int">
+        SELECT count(1) FROM tbl_sku_sale_attr_value
+        WHERE attr_id = #{attrId}
+    </select>
+
+</mapper>
