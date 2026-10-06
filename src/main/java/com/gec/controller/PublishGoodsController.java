@@ -18,7 +18,7 @@ import javax.servlet.http.HttpServletResponse;
  * 商品上架(第 1 步: 基本信息 + 图片上传/回显)。
  *   showImg           GET    /PublishGoods/showImg/{dir}/{imgName}   读本地图片字节流(失败输出 404 兜底图)
  *   upload            POST   /PublishGoods/upload (file + type)       图片上传: type=1 主图→goods, 其它→album
- *   saveGoodsBaseInfo POST   /PublishGoods/saveGoodsBaseInfo          第 1 步基本信息写 Redis 暂存(讲师主流程)
+ *   saveGoodsBaseInfo POST   /PublishGoods/saveGoodsBaseInfo          第 1 步基本信息写 Redis 暂存(主流程)
  *   saveGoodsAttrValues POST /PublishGoods/saveGoodsAttrValues        第 2 步规格参数写 Redis 暂存(9.12 主流程)
  *   saveSaleAttrValues POST  /PublishGoods/saveSaleAttrValues         第 3 步销售属性写 Redis 暂存(9.12 补全)
  *   saveSkuValues     POST   /PublishGoods/saveSkuValues              第 4 步 SKU 列表写 Redis 暂存(9.12 补全)
@@ -87,7 +87,7 @@ public class PublishGoodsController extends BaseController {
         if (mFile == null || mFile.isEmpty()) {
             throw new RuntimeException("文件不能为空。");
         }
-        //2.按 type 选目录(讲师原版 type.equals(1) 在 type 为 null 时会 NPE, 这里短路防御)
+        //2.按 type 选目录(原实现 type.equals(1) 在 type 为 null 时会 NPE, 这里短路防御)
         String dir = (type != null && type == 1) ? MAIN_DIR : ALBUM_DIR;
         //3.上传管道: 先挂当前文件, 再 saveFile 落盘
         fileTemplate.setMultipartFile(mFile);
@@ -105,7 +105,7 @@ public class PublishGoodsController extends BaseController {
     }
 
     /*
-    * 第 1 步: 基本信息写 Redis 暂存(9.11 讲师方案, 发布商品主流程走这里)。
+    * 第 1 步: 基本信息写 Redis 暂存(9.11 参考方案, 发布商品主流程走这里)。
     * POST /PublishGoods/saveGoodsBaseInfo  (请求体 JSON)
     * 入参 GoodsBaseInfoVO = {goodsDetail, pointRule, spuAlbumVO} 三块一起打包。
     * 返回: pubKey —— 本次发布的 16 位流水号, 后续 3 步(规格属性/销售属性/SKU)
@@ -124,7 +124,7 @@ public class PublishGoodsController extends BaseController {
     * 表单字段: id(可选)/goodsName/goodsDetails/categoryId/brandId/weight/mainImg/allowDeduct/rewardPoint。
     * id 为空 → 新增(自增 id 回填); id 有值 → 更新。
     * 返回实体: 新增时前端从 data.id 拿回填的主键, 供"下一步"继续提交。
-    * [保留说明] 9.11 讲师方案已改为 Redis 暂存(上面的 saveGoodsBaseInfo),
+    * [保留说明] 9.11 方案已改为 Redis 暂存(上面的 saveGoodsBaseInfo),
     *            本接口是"直接落库"的旧通道, 保留作本地调试/异常兜底, 不参与新主流程。
     */
     @PostMapping("/saveBaseInfo")
@@ -143,7 +143,7 @@ public class PublishGoodsController extends BaseController {
     }
 
     /*
-    * 第 2 步: 规格参数写 Redis 暂存(9.12 讲师方案)。
+    * 第 2 步: 规格参数写 Redis 暂存(9.12 参考方案)。
     * POST /PublishGoods/saveGoodsAttrValues  (请求体 JSON)
     * 入参 GoodsAttrValuesVO = {pubKey, attrList}:
     *        pubKey   第 1 步返回的流水号, 前端原样带回来;

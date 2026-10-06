@@ -443,7 +443,7 @@
               <p class="steps-note">第 1 步：填写基本信息并上传主图，保存后依次进入规格参数 → 销售属性 → SKU 设置 → 保存完成</p>
             </div>
 
-            <!-- 基础信息表单：垂直布局，label 固定 120px 右对齐（还原讲师 label-width="120px"） -->
+            <!-- 基础信息表单：垂直布局，label 固定 120px 右对齐（还原 label-width="120px" 布局） -->
             <div class="pub-form">
               <!-- 隐藏字段：pubGoodsId=保存成功返回的商品 id（供第 2 步衔接）；pubMainImg=主图文件名（随表单提交） -->
               <input type="hidden" id="pubGoodsId">
@@ -501,7 +501,7 @@
                 <span class="pub-inline-label">返还积分</span>
                 <input id="pubRewardPoint" type="number" min="0" class="form-input pub-w150"
                        placeholder="100">
-                <span class="hint">留空由后端取默认值（讲师模板默认 150 / 100）</span>
+                <span class="hint">留空由后端取默认值（默认 150 / 100）</span>
               </div>
 
               <!-- 商品主图：105×105 虚线方块，点击选择 → 本地预览 → 立即上传（type=1） -->
@@ -549,7 +549,7 @@
           </nav>
 
           <div class="card">
-            <!-- 步骤条：5 步，当前第 2 步高亮（贴讲师 el-steps :active="1"） -->
+            <!-- 步骤条：5 步，当前第 2 步高亮（对应 el-steps :active="1"） -->
             <div class="steps-bar">
               <ol class="steps">
                 <li><span class="step-dot">1</span><span class="step-title">基本信息</span></li>
@@ -585,7 +585,7 @@
           </nav>
 
           <div class="card">
-            <!-- 步骤条：5 步，当前第 3 步高亮（贴讲师 el-steps :active="2"） -->
+            <!-- 步骤条：5 步，当前第 3 步高亮（对应 el-steps :active="2"） -->
             <div class="steps-bar">
               <ol class="steps">
                 <li><span class="step-dot">1</span><span class="step-title">基本信息</span></li>
@@ -621,7 +621,7 @@
           </nav>
 
           <div class="card">
-            <!-- 步骤条：5 步，当前第 4 步高亮（贴讲师 el-steps :active="3"） -->
+            <!-- 步骤条：5 步，当前第 4 步高亮（对应 el-steps :active="3"） -->
             <div class="steps-bar">
               <ol class="steps">
                 <li><span class="step-dot">1</span><span class="step-title">基本信息</span></li>
@@ -657,7 +657,7 @@
           </nav>
 
           <div class="card">
-            <!-- 步骤条：5 步，当前第 5 步高亮（贴讲师 el-steps :active="4"） -->
+            <!-- 步骤条：5 步，当前第 5 步高亮（对应 el-steps :active="4"） -->
             <div class="steps-bar">
               <ol class="steps">
                 <li><span class="step-dot">1</span><span class="step-title">基本信息</span></li>

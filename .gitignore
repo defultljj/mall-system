@@ -20,6 +20,7 @@ db/backup-*.sql
 # Machine-specific configuration
 src/main/resources/application.properties
 upload/*
+!upload/404_pic.png
 !upload/goods/
 !upload/brand/
 !upload/album/
@@ -27,3 +28,6 @@ upload/*
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local Claude Code workspace (gates, local settings)
+.claude/

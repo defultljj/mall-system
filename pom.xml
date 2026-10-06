@@ -80,7 +80,7 @@
         </dependency>
         <!-- 8.Redis 连接池: Lettuce 只有在类路径上有 commons-pool2 时才能启用连接池,
              否则 application.properties 里的 spring.redis.lettuce.pool.* 会导致启动报错
-             (讲师资料同款: 两个依赖一起加, 版本同样交给 BOM 管理) -->
+             (两个依赖一起加, 版本同样交给 BOM 管理) -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-pool2</artifactId>

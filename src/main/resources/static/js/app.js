@@ -44,7 +44,7 @@
  *   GET    /Brand/showImg/{logoName}   图片字节流（<img src> 同源直连带 cookie；404/失败时 onerror 换占位）
  *                         （原 GET /Brand/readImage?fileName= 已废弃，前端不再引用）
  *   GET    /Brand/brandOptions/{categoryId}   data=[{value,label},...] 发布商品「选择品牌」下拉数据源
- *                         （讲师逻辑：必须先确认三级类别，才可调用）
+ *                         （业务逻辑：必须先确认三级类别，才可调用）
  *   GET    /Brand/associatedCategories?brandId=   data=该品牌已关联类别（树结构，含 children 嵌套）
  *   POST   /Brand/associateCategory  JSON body（apiJson 封装）：
  *                          { brandId, brandName, categories:[{id,categoryName}], deleteIds:[...] }
@@ -69,11 +69,11 @@
  *   POST   /PublishGoods/upload   multipart/form-data：file + type（1=主图）
  *                         → data={ fileName, logoUrl }
  *   GET    /PublishGoods/showImg/goods/{fileName}   主图字节流（<img src> 直连；404 时后端返回 404 图）
- *   POST   /PublishGoods/saveGoodsBaseInfo   JSON body（apiJson 封装，讲师 Redis 暂存方案）：
+ *   POST   /PublishGoods/saveGoodsBaseInfo   JSON body（apiJson 封装，Redis 暂存方案）：
  *                         { goodsDetail:{ goodsName, goodsDetails?, categoryId, mainImage?, brandId?, weight? },
  *                           pointRule:{ allowDeduct?, rewardPoint? }, spuAlbumVO:{ images:[] } }
  *                         → data={ pubKey }（16 位大写发布键）；前端存 localStorage.pubKey 供第 2 步续传
- *                         字段名注意：goodsDetail 单数（讲师实体 GoodsDetail）、mainImage（非 mainImg）；
+ *                         字段名注意：goodsDetail 单数（后端实体 GoodsDetail）、mainImage（非 mainImg）；
  *                         weight/mainImage/brandId 可空；pointRule 为空传 null（后端取默认 150/100）
  *                         （原 POST /PublishGoods/saveBaseInfo 表单直落库：后端保留，前端不再调用）
  *   GET    /PublishGoods/get?id=   基础信息回显（本轮无入口，未接入）
@@ -83,8 +83,8 @@
  *                         按类别 + 属性类型取属性列表（attrType 固定 1 = 规格参数/基本属性）
  *                         → data=[{ id, attrName, categoryId, attrType, valueType, attrValue, ... }]
  *                         valueType：1=单值（input + datalist）| 2=多值（标签多选）
- *                         attrValue：候选项文本，多值型用 ';' 拼接（讲师答案：前端 split(';') 得 valueArr）
- *   POST   /PublishGoods/saveGoodsAttrValues   JSON body（apiJson 封装，讲师 Redis 暂存方案·第 2 步）：
+ *                         attrValue：候选项文本，多值型用 ';' 拼接（实现约定：前端 split(';') 得 valueArr）
+ *   POST   /PublishGoods/saveGoodsAttrValues   JSON body（apiJson 封装，Redis 暂存方案·第 2 步）：
  *                         { pubKey, attrList:[{ attrId, valueType, attrValue }] }
  *                         多值型 attrValue 由前端 valueArr.join(';') 回字符串；空值行前端已过滤
  *                         → R.ok().put("pubKey", pubKey)：**pubKey 在响应顶层**（与第 1 步一致）
@@ -129,10 +129,10 @@
  *   - 未登录时不加载任何业务数据；/Auth/check 成功（或登录成功）后才初次加载
  *   - 退出登录 / 会话失效（401）后清空视图数据，避免下次登录串台
  *   - 发布商品（第 1 步）：三级类别必须选满才算确认（categoryId = 第三级 id），
- *     确认后才加载品牌下拉（品牌可空）；主图未上传成功时「下一步」按钮禁用（讲师要求）
+ *     确认后才加载品牌下拉（品牌可空）；主图未上传成功时「下一步」按钮禁用（需求约定）
  *   - 发布商品（第 1 步提交）：整单 JSON POST /PublishGoods/saveGoodsBaseInfo 暂存 Redis（不落库），
  *     成功后把返回的 pubKey 与 categoryId 写入 localStorage（跨步骤续传），并自动切到第 2 步视图；
- *     「重置表单」不清 pubKey（讲师行为）
+ *     「重置表单」不清 pubKey（既定行为）
  *   - 发布商品（第 2 步）：类别 id 优先取内存 publishCategoryId、其次 localStorage.categoryId（兜底），
  *     二者都没有则提示「请先完成第 1 步」并禁用提交；属性列表扁平展示不分组
  *   - 发布商品（第 3 步）：与第 2 步共用同一套属性表单引擎（只换容器/前缀/attrType/文案）；
@@ -436,7 +436,7 @@ function clearViewData() {
   });
   resetPublishForm(true);        // 发布商品：表单/三级联动/品牌/主图预览全部清空（静默）
   // 发布商品第 2/3 步：属性表单（规格参数/销售属性）状态与 DOM 复位 + 作废进行中的请求
-  // 第 4 步：SKU 组合行一并清空（存储里的 pubKey/categoryId/saleAttr 按讲师行为保留）
+  // 第 4 步：SKU 组合行一并清空（存储里的 pubKey/categoryId/saleAttr 按既定行为保留）
   resetAttrFormState(goodsAttrForm);
   resetAttrFormState(saleAttrForm);
   syncSetGoodsAttrState();
@@ -1795,10 +1795,10 @@ async function saveAttrGroup() {
 
 /* ==================== 发布商品视图（商品上架第 1 步：基本信息） ==================== */
 /*
- * 流程（还原讲师 PublishBaseInfo 模板）：
+ * 流程（还原 PublishBaseInfo 模板）：
  *   三级类别联动（数据源 catCache）→ 选满三级才确认 categoryId 并加载品牌 →
  *   上传主图（type=1）→ POST /PublishGoods/saveGoodsBaseInfo（JSON，Redis 暂存）→ localStorage.pubKey
- * 讲师规则：必须确认三级类别才可选择品牌；主图没有上传之前不能提交
+ * 业务规则：必须确认三级类别才可选择品牌；主图没有上传之前不能提交
  */
 
 // 类别节点 → 子级数组（后端无子级时可能不返回 children 键）
@@ -1858,7 +1858,7 @@ function onPubCatChange(level) {
 // forceReload=true：强制重载品牌选项（类别树变更后选项可能过期）
 function syncPubCategory(forceReload) {
   const v1 = $('pubCat1').value, v2 = $('pubCat2').value, v3 = $('pubCat3').value;
-  if (v1 && v2 && v3) {                    // 讲师逻辑：arr.length == 3 才确认类别
+  if (v1 && v2 && v3) {                    // 业务逻辑：arr.length == 3 才确认类别
     publishCategoryId = v3;
     if (forceReload) publishBrandFor = '';
     loadPubBrandOptions(v3);
@@ -1939,7 +1939,7 @@ function setPubMainUploading(on) {
   syncPublishSubmitState();
 }
 
-// 「下一步」可用态：主图已上传且不在上传中（讲师要求：文件没上传之前不能点提交）
+// 「下一步」可用态：主图已上传且不在上传中（需求约定：文件没上传之前不能点提交）
 function syncPublishSubmitState() {
   const ok = !!publishMainImg && !publishingImg;
   $('btnPublishNext').disabled = !ok;
@@ -2007,14 +2007,14 @@ function removePubMainImg() {
 
 /* ---------------- 表单提交 / 重置 / 进入视图 ---------------- */
 
-// 提交第 1 步（讲师 savePublishData 方案）：整单 JSON POST /PublishGoods/saveGoodsBaseInfo，
+// 提交第 1 步（参考实现 savePublishData 方案）：整单 JSON POST /PublishGoods/saveGoodsBaseInfo，
 // 后端把第 1 步表单暂存 Redis 并返回 16 位大写发布键 pubKey → 前端写 localStorage.pubKey，后续步骤凭此键续传。
 // 注意：本步不再落库（原 /PublishGoods/saveBaseInfo 表单直落库后端保留，前端不再调用）；隐藏字段
 // pubGoodsId/pubMainImg 保留不动，仅作后续步骤衔接（pubGoodsId 不再由本函数写入）。
 async function savePublishBaseInfo() {
   const goodsName = $('pubGoodsName').value.trim();
   if (!goodsName) { toast('商品名称不能为空', false); return; }
-  if (!publishCategoryId) { toast('请选择到三级类别', false); return; }   // 必须选满三级（讲师规则）
+  if (!publishCategoryId) { toast('请选择到三级类别', false); return; }   // 必须选满三级（业务规则）
   if (!publishMainImg) { toast('请先上传商品主图', false); return; }      // 主图未上传成功不可提交
   // goodsDetail：goodsName/categoryId 必给，其余可空（空则不带该键，后端按 null 处理）
   const goodsDetail = {
@@ -2028,7 +2028,7 @@ async function savePublishBaseInfo() {
   if (brandId) goodsDetail.brandId = Number(brandId);
   const weight = $('pubWeight').value;       // 重量可空：不填不传（数字输入，防御性判有限数）
   if (weight !== '' && Number.isFinite(Number(weight))) goodsDetail.weight = Number(weight);
-  // pointRule：两项都留空 → 整个键传 null（后端取讲师模板默认 150/100）；单项留空 → 该项不传
+  // pointRule：两项都留空 → 整个键传 null（后端取默认 150/100）；单项留空 → 该项不传
   const pointRule = {};
   const allowDeduct = $('pubAllowDeduct').value;
   if (allowDeduct !== '' && Number.isFinite(Number(allowDeduct))) pointRule.allowDeduct = Number(allowDeduct);
@@ -2042,21 +2042,21 @@ async function savePublishBaseInfo() {
   $('btnPublishNext').disabled = true;
   try {
     const res = await apiJson('/PublishGoods/saveGoodsBaseInfo', payload);
-    // 讲师答案：后端 R.ok().put("pubKey", pubKey) —— pubKey 在响应**顶层**（非 data 内）
+    // 实现约定：后端 R.ok().put("pubKey", pubKey) —— pubKey 在响应**顶层**（非 data 内）
     const pubKey = res && res.pubKey;
     if (!pubKey) throw new Error('返回数据缺少 pubKey（契约：顶层 pubKey，16 位大写发布键）');
     window.localStorage.setItem('pubKey', pubKey);   // 后续步骤凭此键继续（重置表单不清除）
-    // 第 2 步要用类别 id 加载规格参数：讲师用路由参数传递，本项目无路由 → 内存全局 + localStorage 兜底
+    // 第 2 步要用类别 id 加载规格参数：参考实现用路由参数传递，本项目无路由 → 内存全局 + localStorage 兜底
     window.localStorage.setItem('categoryId', publishCategoryId);
     console.log('【发布键】pubKey：' + pubKey);
     toast('基础信息已暂存（发布键：' + pubKey + '），后续步骤将凭此键继续');
-    switchView('setGoodsAttr');              // 自动进入第 2 步（贴讲师 $router.push 语义）
+    switchView('setGoodsAttr');              // 自动进入第 2 步（对齐 $router.push 语义）
   } catch (e) { notifyError(e); }
   finally { syncPublishSubmitState(); }
 }
 
 // 重置表单：清空所有字段 + 三级联动 + 品牌 + 主图预览
-// 注意：不清 localStorage.pubKey —— 发布键跨步骤使用（讲师行为），仅本页表单字段复位
+// 注意：不清 localStorage.pubKey —— 发布键跨步骤使用（既定行为），仅本页表单字段复位
 // silent=true：退出登录/会话失效时的静默清空（不弹 toast）
 function resetPublishForm(silent) {
   $('pubGoodsId').value = '';
@@ -2100,7 +2100,7 @@ async function initPublishView() {
  *   → 「下一步」→ POST /PublishGoods/save{G|Sale}AttrValues（JSON：{pubKey, attrList}）
  * 两步的差异只有「容器与动态控件 id 前缀 / attrType / 按钮与文案」，全部收进 ctx 配置对象（createAttrFormCtx）；
  * 渲染与交互函数只操作 ctx，故第 3 步无需复制一份（本引擎即由第 2 步既有实现参数化而来，行为不变）。
- * 讲师规则：属性列表扁平展示（不分组）；空值行提交时过滤；属性全为空也可提交（无强制校验）
+ * 业务规则：属性列表扁平展示（不分组）；空值行提交时过滤；属性全为空也可提交（无强制校验）
  */
 
 // 创建一份属性表单上下文：containerId = 属性行容器；prefix = 动态控件 id 前缀（两个视图的 id 不能重复）
@@ -2158,7 +2158,7 @@ function resolveAttrCategoryId() {
   return String(publishCategoryId || window.localStorage.getItem('categoryId') || '');
 }
 
-// 属性行的候选项：接口 attrValue 按 ';' 拆成数组（讲师答案：多值型 valueArr = attrValue.split(';')）
+// 属性行的候选项：接口 attrValue 按 ';' 拆成数组（实现约定：多值型 valueArr = attrValue.split(';')）
 // 只对接口原始值拆一次并缓存到 row.cands —— 单值行用户输入会覆盖 attrValue，不能边输入边重拆
 function attrCandidates(attrValue) {
   if (!attrValue) return [];
@@ -2184,7 +2184,7 @@ async function loadAttrRows(ctx, categoryId) {
         valueArr: []
       };
       row.cands = attrCandidates(row.attrValue);
-      // 讲师答案：多值型把 attrValue 拆成 valueArr 作为初始已选值（如 "256GB;512GB" → [256GB, 512GB]）
+      // 实现约定：多值型把 attrValue 拆成 valueArr 作为初始已选值（如 "256GB;512GB" → [256GB, 512GB]）
       if (row.valueType == 2) row.valueArr = row.cands.slice();
       return row;
     });
@@ -2224,7 +2224,7 @@ function attrCtrlHtml(ctx, row, i) {
   const cands = row.cands || [];
   if (row.valueType == 1) {
     const dlId = ctx.prefix + 'Dl' + i;
-    // datalist：既有候选可选，也允许自由输入（= 讲师 el-select filterable allow-create default-first-option）
+    // datalist：既有候选可选，也允许自由输入（对应 el-select filterable allow-create default-first-option）
     // 【bug 修复】补 data-row 行号：输入代理 onAttrFormInput 靠它把输入回写到对应 row.attrValue
     let h = '<input id="' + ctx.prefix + 'Inp' + i + '" class="form-input attr-value-input" type="text"' +
       ' data-row="' + i + '"' +
@@ -2335,7 +2335,7 @@ function onAttrFormInput(ctx, e) {
   if (row) row.attrValue = inp.value;
 }
 
-// 「下一步」可用态：类别已确认且不在提交中（属性值为空也可提交——讲师无强制校验）
+// 「下一步」可用态：类别已确认且不在提交中（属性值为空也可提交——无强制校验）
 function syncAttrFormState(ctx) {
   const btn = $(ctx.btnId);
   if (!btn) return;
@@ -2402,7 +2402,7 @@ function resetSetGoodsAttrForm() { resetAttrForm(goodsAttrForm); }
 function resetSaleAttrForm() { resetAttrForm(saleAttrForm); }
 
 // 汇总属性表单的提交列表：元素 = { attrId, valueType, attrValue }（第 2/3 步共用）
-//   多值型 valueArr.join(';') 回字符串；空值行（单值未填 / 多值空数组）过滤 —— 讲师 pickForm 语义
+//   多值型 valueArr.join(';') 回字符串；空值行（单值未填 / 多值空数组）过滤 —— 对应 pickForm 语义
 function buildAttrFormList(ctx) {
   const list = [];
   for (let i = 0; i < ctx.rows.length; i++) {
@@ -2424,8 +2424,8 @@ function buildAttrFormList(ctx) {
   return list;
 }
 
-// 提交第 2 步（讲师 savePublishData 方案）：POST /PublishGoods/saveGoodsAttrValues（JSON body）
-// 成功后自动进入第 3 步「销售属性」（贴讲师 $router.push 语义）
+// 提交第 2 步（参考实现 savePublishData 方案）：POST /PublishGoods/saveGoodsAttrValues（JSON body）
+// 成功后自动进入第 3 步「销售属性」（对齐 $router.push 语义）
 async function saveSetGoodsAttrValues() {
   if (goodsAttrForm.submitting) return;
   const pubKey = window.localStorage.getItem('pubKey');
@@ -2435,7 +2435,7 @@ async function saveSetGoodsAttrValues() {
   syncSetGoodsAttrState();
   try {
     const res = await apiJson('/PublishGoods/saveGoodsAttrValues', { pubKey: pubKey, attrList: list });
-    // 讲师答案：后端 R.ok().put("pubKey", ...) —— 顶层 pubKey（与第 1 步一致）；缺失时沿用本地发布键
+    // 实现约定：后端 R.ok().put("pubKey", ...) —— 顶层 pubKey（与第 1 步一致）；缺失时沿用本地发布键
     const back = (res && res.pubKey) || pubKey;
     toast('规格参数已暂存（发布键：' + back + '）');
     switchView('saleAttr');                                   // 自动进入第 3 步
@@ -2475,7 +2475,7 @@ async function saveSaleAttrValues() {
         values: String(item.attrValue || '').split(';').map((value) => value.trim()).filter(Boolean)
       };
     }).filter((row) => row.values.length);
-    // 刷新兜底：第 4 步直接读 localStorage.saleAttr 也能重建（讲师约定此键不清）
+    // 刷新兜底：第 4 步直接读 localStorage.saleAttr 也能重建（项目约定此键不清）
     window.localStorage.setItem('saleAttr', JSON.stringify(saleAttrRows));
     console.log('【发布键】pubKey：' + back + '；已填销售属性：', saleAttrRows);
     toast('销售属性已暂存（发布键：' + back + '）');
@@ -2502,7 +2502,7 @@ function readSaleAttrRows() {
     const arr = raw ? JSON.parse(raw) : [];
     return Array.isArray(arr) ? arr : [];
   } catch (e) {
-    return [];      // 存储内容损坏：按「未选销售属性」处理（讲师约定存储不清，不做删除）
+    return [];      // 存储内容损坏：按「未选销售属性」处理（项目约定存储不清，不做删除）
   }
 }
 
@@ -2739,7 +2739,7 @@ async function submitPublishGoods() {
   syncFinishState();
   try {
     const res = await api('/PublishGoods/submitPublish', 'POST', { pubKey: pubKey });
-    // 讲师答案：后端 R.ok().put("spuId", ...) —— spuId 在响应**顶层**（与前四步的 pubKey 同一风格）
+    // 实现约定：后端 R.ok().put("spuId", ...) —— spuId 在响应**顶层**（与前四步的 pubKey 同一风格）
     const spuId = res && res.spuId;
     // 发布完成：清 localStorage 三键（只有成功才清 —— 失败保留三键，可原地重试）
     window.localStorage.removeItem('pubKey');

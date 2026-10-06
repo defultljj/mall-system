@@ -27,7 +27,7 @@ import java.io.IOException;
  *   associateCategory POST  /Brand/associateCategory (JSON body)                   品牌 ↔ 类别勾选保存
  *   upload           POST   /Brand/upload (multipart 参数名 file)                  品牌 logo 上传
  *   readImage        GET    /Brand/readImage?fileName=                             读 logo 图片字节流(兼容保留)
- *   showImg          GET    /Brand/showImg/{fileName}                              读 logo 图片字节流(讲师答案路由)
+ *   showImg          GET    /Brand/showImg/{fileName}                              读 logo 图片字节流(路径参数路由)
  *   associatedCategories GET /Brand/associatedCategories?brandId=                  某品牌已关联的类别(回显)
  *   listByCategory   POST   /Brand/listByCategory?page=&limit=&categoryId=         按类别列品牌(带 isAssociate)
  *   brandOptions     GET    /Brand/brandOptions/{categoryId}                       按类别列品牌下拉(商品上架第1步)
@@ -122,7 +122,7 @@ public class BrandController extends BaseController {
     /* 8.品牌 logo 上传.
      * POST /Brand/upload (multipart 参数名固定为 file)
      * 文件名用 UUID + 原扩展名重命名(防重名/防中文名乱码), 存到 upload/brand/ 下,
-     * 返回 fileName(存进 logoName 字段) + logoUrl(浏览器直接可访问的回显地址, 讲师答案格式) */
+     * 返回 fileName(存进 logoName 字段) + logoUrl(浏览器直接可访问的回显地址) */
     @PostMapping("/upload")
     public R upload(MultipartFile file) throws IOException {
         //1.空文件直接拒绝
@@ -171,7 +171,7 @@ public class BrandController extends BaseController {
         resp.getOutputStream().write(data);
     }
 
-    /* 9.1 读取品牌图片(讲师答案路由风格): GET /Brand/showImg/d01.png
+    /* 9.1 读取品牌图片(RESTful 风格路由): GET /Brand/showImg/d01.png
      * 与 readImage 等价, 只是参数风格不同(路径参数 vs 查询参数);
      * 直接复用 BaseController.outFile: 读 upload/brand/ 下文件(按扩展名设 MIME),
      * 读失败 → send404File 输出 404 兜底图, 保证 <img> 不裂 */

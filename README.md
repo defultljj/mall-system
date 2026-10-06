@@ -18,7 +18,7 @@ Java 17、Spring Boot 2.6、MyBatis-Plus、MySQL 8、Redis、Hadoop HDFS、Apach
 
 ## 快速开始
 
-1. 创建 MySQL 数据库 `mall_sys`，执行 `db/mall_sys_full_demo.sql` 初始化示例数据。
+1. 创建 MySQL 数据库 `mall_sys`，先执行 `db/mall_sys_schema.sql` 建表，再按顺序执行 `db/mall_sys_full_demo.sql`、`db/mall_sys_expand_demo.sql` 初始化示例数据（详见 `db/README.md`）。
 2. 复制 `src/main/resources/application.example.properties` 为 `application.properties`，填写 MySQL、Redis 和可选 Hive 配置。
 3. 启动 Redis（默认 `localhost:6379`）。
 4. 使用 JDK 17+ 启动：

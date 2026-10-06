@@ -7,10 +7,9 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
 
 /*
- * 角色 Mapper(以干净的 RoleMapper.java 为基底补齐):
+ * 角色 Mapper:
  * 除 BaseMapper 的单表 CRUD 外, 还需要维护"用户-角色"关联表 tbl_user_role,
  * 对应 IRoleService.addUserRoleAssociation / removeUserRoleAssociation 的调用。
- * (桌面上的 "RoleMapper (1).java" 是老师的半成品副本, 内容与本文件重复, 不落盘)
  */
 public interface RoleMapper extends BaseMapper<Role> {
 

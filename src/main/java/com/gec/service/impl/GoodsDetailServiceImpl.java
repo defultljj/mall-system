@@ -37,7 +37,7 @@ import java.math.BigDecimal;
  *
  * 发布流程一共 5 步: 前 4 步(基本信息/规格属性/销售属性/SKU)都只写 Redis,
  * 第 5 步 submitPublish 才把四段缓存一次性落库并清缓存。
- * 缓存 KEY 设计(见下方注释, 与讲师的命名约定一致):
+ * 缓存 KEY 设计(见下方注释, 遵循统一命名约定):
  *   KEY:"0107AX-base"        [STEP01-基本信息]  ← 本类负责
  *   KEY:"0107AX-goods-attr"  [STEP02-规格属性]
  *   KEY:"0107AX-sale-attr"   [STEP03-销售属性]
@@ -49,7 +49,7 @@ import java.math.BigDecimal;
  *        且 JSON 里带 @class, 读回时能还原成 GoodsBaseInfoVO。
  *
  * [清理] 资料文件里 Dept 系 import(DeptMapper/Dept/IDeptService/IBaseService)均未使用, 已删除。
- * [留白补全] saveBaseInfoCache 为讲师填空处, 按讲师答案补全; printMARK 保留原样。
+ * [留白补全] saveBaseInfoCache 为预留填空处, 按实现约定补全; printMARK 保留原样。
  * [9.12 新增] 第 2 步 saveGoodsAttrValCache(规格参数), 照 saveBaseInfoCache 的模式实现。
  * [9.12 补全] 第 3 步 saveSaleAttrValCache(销售属性) / 第 4 步 saveSkuValCache(SKU 列表),
  *            照 saveGoodsAttrValCache 的模式实现(仅 KEY 后缀不同)。
@@ -71,7 +71,7 @@ public class GoodsDetailServiceImpl
     @Autowired
     private JdbcTemplate jdbc;
 
-    /* 积分默认值: pointRule 为空时兜底(与第 1 步"直落库"通道 / 讲师模板一致: 抵扣 150, 返还 100) */
+    /* 积分默认值: pointRule 为空时兜底(与第 1 步"直落库"通道 / 默认模板一致: 抵扣 150, 返还 100) */
     private static final int DEFAULT_ALLOW_DEDUCT = 150;
     private static final int DEFAULT_REWARD_POINT = 100;
 
@@ -92,7 +92,7 @@ public class GoodsDetailServiceImpl
         String pubKey = UUID.randomUUID().toString().toUpperCase().substring(0,16);
         //3.拼出第 1 步缓存 KEY: 流水号 + "-base"
         String KEY = pubKey + "-base";
-        //4.写缓存(JSON 序列化; 暂不设过期时间, 与讲师一致)
+        //4.写缓存(JSON 序列化; 暂不设过期时间)
         cacheSet(KEY, biVO);
         //5.打印跟踪标记(联调时肉眼确认写入的 KEY 与流水号)
         printMARK(KEY, pubKey);
@@ -101,10 +101,10 @@ public class GoodsDetailServiceImpl
     }
 
     /*
-     * 商品发布第 2 步: 规格参数写入 Redis 暂存(9.12 讲师方案)。
+     * 商品发布第 2 步: 规格参数写入 Redis 暂存(9.12 参考方案)。
      * 前端提交 GoodsAttrValuesVO = {pubKey, attrList}, 缓存 KEY = pubKey + "-goods-attr"。
      * 与第 1 步的差别: pubKey 由第 1 步生成、随请求带过来, 本步不再新建流水号, 只管写缓存。
-     * 按讲师答案, OP.set 存的是 attrList 列表本体(不是整个 VO), 供最后一步落库时直接取用。
+     * 按实现约定, OP.set 存的是 attrList 列表本体(不是整个 VO), 供最后一步落库时直接取用。
      */
     @Override
     public String saveGoodsAttrValCache(GoodsAttrValuesVO gavVO) {
@@ -117,7 +117,7 @@ public class GoodsDetailServiceImpl
         }
         //4.拼出第 2 步缓存 KEY: 流水号 + "-goods-attr"
         String KEY = pubKey + "-goods-attr";
-        //5.写缓存(JSON 序列化; 讲师答案存 attrList 本体; 暂不设过期时间, 与第 1 步一致)
+        //5.写缓存(JSON 序列化; 只存 attrList 本体; 暂不设过期时间, 与第 1 步一致)
         cacheSet(KEY, gavVO.getAttrList());
         //6.打印跟踪标记(联调时肉眼确认写入的 KEY 与流水号)
         printMARK(KEY, pubKey);

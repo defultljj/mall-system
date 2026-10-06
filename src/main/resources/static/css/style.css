@@ -640,7 +640,7 @@ textarea.form-input {
   color: var(--text-3);
 }
 
-/* 发布表单：label 固定 120px 右对齐（还原讲师 label-width="120px"） */
+/* 发布表单：label 固定 120px 右对齐（还原 label-width="120px" 布局） */
 .pub-form { margin-top: 24px; }
 .pub-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
 .pub-row.top { align-items: flex-start; }
@@ -688,9 +688,9 @@ textarea.form-input {
 /* ================= 发布商品第 2 步「设置商品属性」：属性行控件 ================= */
 /* 属性行复用 .pub-row / .pub-label（label 120px 右对齐），控件区由本组样式承担 */
 .attr-ctrl { flex: 1; min-width: 0; }
-/* 单值属性：input + datalist（候选值来自 attrValue 按 ';' 拆分，可自由输入 = 讲师 allow-create 语义） */
+/* 单值属性：input + datalist（候选值来自 attrValue 按 ';' 拆分，可自由输入 = allow-create 语义） */
 .attr-value-input { flex: none; width: 550px; max-width: 100%; }
-/* 多值属性：标签多选（宽度对齐讲师 el-select 的 550px） */
+/* 多值属性：标签多选（宽度对齐 el-select 的 550px） */
 .tag-box {
   display: flex;
   align-items: center;
@@ -800,7 +800,7 @@ textarea.form-input {
   justify-content: center;
   gap: 8px;
   font-size: 15px;
-  font-weight: 500;                    /* 还原讲师 .chart-title */
+  font-weight: 500;                    /* 还原 .chart-title */
   color: var(--text);
   margin-bottom: 5px;
 }
@@ -814,7 +814,7 @@ textarea.form-input {
   border-radius: 9px;
 }
 .chart-tag.live { color: var(--primary); background: var(--primary-light); border-color: #bfdbfe; }
-.chart-box { width: 100%; height: 280px; }   /* 还原讲师 .chart-box 高度 */
+.chart-box { width: 100%; height: 280px; }   /* 还原 .chart-box 高度 */
 
 @media (max-width: 1100px) {
   .dash-grid { grid-template-columns: 1fr; }

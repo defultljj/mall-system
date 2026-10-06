@@ -10,8 +10,8 @@
 --   本脚本用等价的 SQL 语义在本机「补跑」一次批次：从现有业务表读取数据，
 --   按 Stage2HiveService 里的 Hive SQL 规则清洗/派生，写入同样的结果表，
 --   并登记 etl_batch/etl_job_log/etl_quality_result。
---   结构上与队友真实跑 Hive 时产出的批次完全一致（同一批表、同一批字段、
---   同一批次号格式），将来队友跑真实批次时新批次会自然取代本批次。
+--   结构上与真实跑 Hive 时产出的批次完全一致（同一批表、同一批字段、
+--   同一批次号格式），将来真实批次产出后新批次会自然取代本批次。
 --
 -- 与 Java 管线的逐步对应（改动 Java/Hive 前请先看这里）：
 --   Stage2OdsImportService.importSamples : 采集 ODS 行 → etl_batch(RUNNING)

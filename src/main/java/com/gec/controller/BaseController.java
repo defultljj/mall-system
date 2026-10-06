@@ -92,7 +92,7 @@ public abstract class BaseController {
 
     /*
     * 1.在目录下放置一个文件进来。
-    *   位置: D:\\haida\\space\\upload
+    *   位置: upload/ 根目录
     *   文件: 404_pic.png
     * 实现: 先尝试输出 upload 根目录的 404_pic.png(缺省图);
     *       二次兜底: 兜底图本身也读不到时绝不能再抛异常,

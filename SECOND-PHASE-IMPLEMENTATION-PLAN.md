@@ -18,7 +18,7 @@
 - 商品、SKU、品类、会员、订单、库存、活动和权限基础业务模块。
 - 统一的商城演示数据和订单、库存、会员积分联动。
 - 虚拟机 Hadoop 3.1.0、HDFS、Yarn、Hive 3.1.2。
-- Hive Metastore 已使用 MySQL，HiveServer2 可通过 `192.168.28.150:10000` 连接。
+- Hive Metastore 已使用 MySQL，HiveServer2 可通过 `127.0.0.1:10000` 连接。
 - Spring Boot 原有管理后台和四个分析入口。
 
 ### 2.2 必须补齐
@@ -40,7 +40,7 @@
 |---|---|---|
 | MySQL `mall_sys` | Windows | 商城业务和分析结果库 |
 | Redis | Windows | 现有发布草稿和业务缓存 |
-| Hadoop/HDFS/Yarn | Linux虚拟机 `192.168.28.150` | 原始数据和Hive存储计算 |
+| Hadoop/HDFS/Yarn | Linux虚拟机 `127.0.0.1` | 原始数据和Hive存储计算 |
 | Hive Metastore | Linux虚拟机，9083 | Hive元数据，元数据库为MySQL `hive` |
 | HiveServer2 | Linux虚拟机，10000 | Spring Boot/Beeline查询入口 |
 | Spring Boot | Windows | 业务、ETL编排和分析API |
@@ -225,7 +225,7 @@ Hive ADS结果写入：
 - 不把Hive结果直接覆盖业务订单表。
 - 不在页面中另外维护一套商品、会员或订单数据。
 - 虚拟机内存约4GB，限制Hive并行度，避免同时跑多个大任务。
-- HiveServer2使用虚拟机IP `192.168.28.150`，Windows端不依赖 `server01` 主机名。
+- HiveServer2使用虚拟机IP `127.0.0.1`，Windows端不依赖 `server01` 主机名。
 - 真实Hadoop集群、高可用、外部支付和物流不在本项目范围内。
 
 ## 13. 开始条件

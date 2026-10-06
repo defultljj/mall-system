@@ -15,7 +15,7 @@ import java.util.List;
  *  - skuImg    : 该 SKU 的图片文件名(可空, 为空时前端回退展示主图);
  *  - attrValues: 该 SKU 的销售属性明细, 元素复用实体 GoodsAttrValue
  *                (此时只有 attrId/attrValue, 尚无 spuId, 与第 2/3 步同理)。
- * 说明: 不继承 BaseEntity(讲师 VO 习惯: 只有最外层 VO 继承), 实现 Serializable
+ * 说明: 不继承 BaseEntity(VO 约定: 只有最外层 VO 继承), 实现 Serializable
  *       以满足 Jackson 缓存序列化; 无参构造 + getter/setter 由 @Data 生成,
  *       反序列化时 Jackson 依赖它们把 JSON 还原成 SkuItem。
  */

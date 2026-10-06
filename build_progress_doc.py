@@ -7,7 +7,7 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
 
-OUT = r"C:\Users\28270\Desktop\电商基础数据管理平台\电商基础数据管理平台_需求构建进度文档.docx"
+OUT = r"output\电商基础数据管理平台_需求构建进度文档.docx"
 
 NAVY = "17365D"
 BLUE = "D9EAF7"
@@ -219,7 +219,7 @@ def build():
     set_run_font(r, size=15, bold=True, color=RGBColor(47, 84, 150))
 
     meta = add_table(doc, ["文档属性", "内容"], [
-        ("交付对象", "全栈工程师及项目开发团队"),
+        ("交付对象", "全栈工程师及开发人员"),
         ("适用范围", "第一阶段基础数据管理平台、第二阶段用户行为与销售数据分析"),
         ("当前基线", "现有 Spring Boot + MyBatis + 原生 HTML/JavaScript 管理系统"),
         ("编制日期", "2026 年 9 月 17 日"),
